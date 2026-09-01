@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { PUZZLES, getDailyPuzzle, DIFFICULTY_COLORS, CATEGORY_LABELS, type Puzzle, type PuzzleDifficulty } from './puzzleData';
+import { PUZZLES, getDailyPuzzle, DIFFICULTY_COLORS, CATEGORY_LABELS, PIECE_COLORS, PIECE_NAMES, type Puzzle, type PuzzleDifficulty } from './puzzleData';
 
 // ---------------------------------------------------------------------------
 // Solved state — persisted to localStorage
@@ -54,13 +54,6 @@ function BoardPreview({ board }: { board: number[][] }) {
 // Piece badge
 // ---------------------------------------------------------------------------
 
-const PIECE_COLORS: Record<number, string> = {
-  1: '#38bdf8', 2: '#fbbf24', 3: '#a78bfa',
-  4: '#4ade80', 5: '#f87171', 6: '#0ea5e9', 7: '#fb923c',
-};
-const PIECE_NAMES: Record<number, string> = {
-  1:'I',2:'O',3:'T',4:'S',5:'Z',6:'J',7:'L',
-};
 
 function PieceBadge({ type }: { type: number }) {
   return (

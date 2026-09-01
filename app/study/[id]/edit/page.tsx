@@ -3,7 +3,7 @@
 import { use } from 'react';
 import StudyEditorPage from '@/components/StudyEditorPage';
 import { usePost } from '@/components/useStudy';
-import { NAV_BAR_WIDTH } from '@/components/NavBar';
+import { NAV_BAR_HEIGHT } from '@/components/NavBar';
 
 function EditPageInner({ id }: { id: string }) {
   const { post, loading } = usePost(id);
@@ -38,7 +38,7 @@ function EditPageInner({ id }: { id: string }) {
 export default function EditStudyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   return (
-    <div style={{ position: 'absolute', top: 0, left: NAV_BAR_WIDTH, right: 0, bottom: 0 }}>
+    <div style={{ position: 'absolute', top: NAV_BAR_HEIGHT, left: 0, right: 0, bottom: 0 }}>
       <EditPageInner id={id} />
     </div>
   );
