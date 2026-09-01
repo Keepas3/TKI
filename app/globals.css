@@ -1,0 +1,32 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* Default accent theme (Ice Cyan) — overridden client-side by
+     useColorTheme.ts once it reads the visitor's saved preference. These
+     defaults matter beyond "just a fallback": they're what server-rendered
+     and first-paint markup use, so they must match useColorTheme's own
+     default or the swap-in reads as a flash instead of a hydration match. */
+  --tt-bg: #05090f;
+  --tt-bg-elevated: #0a121b;
+  --tt-accent: #4fd1ff;
+  --tt-accent-secondary: #ff2e63;
+  --tt-text: #e6f6fb;
+}
+
+html {
+  overflow-y: scroll;
+}
+
+body {
+  font-family: var(--font-comfortaa), -apple-system, sans-serif;
+  color: var(--tt-text);
+  background: linear-gradient(to bottom, var(--tt-bg-elevated), var(--tt-bg));
+  background-attachment: fixed;
+  overflow-x: hidden;
+  min-height: 100vh;
+  width: 100%;
+}
