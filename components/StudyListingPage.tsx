@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { usePosts, TOPICS, type Topic, type ViewType, type SortOrder, type StudyPost } from './useStudy';
 import { topicColor, topicLabel, timeAgo, StudyIcon } from './studyUtils';
 
@@ -247,8 +247,14 @@ function SkeletonCard() {
 
 export default function StudyListingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [sidebarView, setSidebarView] = useState<SidebarView>({ type: 'all' });
+  const initialTopic = searchParams.get('topic') as Topic | null;
+  const [sidebarView, setSidebarView] = useState<SidebarView>(
+    initialTopic && TOPICS.some((t) => t.id === initialTopic)
+      ? { type: 'topic', topic: initialTopic }
+      : { type: 'all' }
+  );
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortOrder>('hot');
