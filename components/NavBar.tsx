@@ -3,6 +3,9 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { getDailyPuzzle } from './puzzleData';
+
+const dailyPuzzleId = getDailyPuzzle().id;
 
 export const NAV_BAR_HEIGHT = 52;
 
@@ -101,7 +104,7 @@ export default function NavBar() {
 
       {/* Daily Puzzle pill */}
       <Link
-        href="/puzzle"
+        href={`/puzzle/${dailyPuzzleId}`}
         style={{
           display: 'flex', alignItems: 'center', gap: '0.4rem',
           padding: '0.28rem 0.85rem', borderRadius: '100px',
