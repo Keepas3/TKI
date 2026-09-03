@@ -65,10 +65,10 @@ export default function DailyPuzzleHero() {
       borderBottom: '1px solid rgba(255,255,255,0.07)',
       padding: '3rem 2rem 3.5rem',
     }}>
-      <div style={{ maxWidth: 960, margin: '0 auto', display: 'flex', gap: '3rem', alignItems: 'flex-start' }}>
+      <div style={{ maxWidth: 820, margin: '0 auto', display: 'flex', gap: '2.5rem', alignItems: 'flex-start' }}>
 
         {/* Left: metadata */}
-        <div style={{ flex: 1, minWidth: 0, paddingTop: '0.5rem' }}>
+        <div style={{ width: 300, flexShrink: 0, paddingTop: '0.5rem' }}>
           <div style={{ fontSize: '0.65rem', fontFamily: 'monospace', letterSpacing: '0.12em', color: 'var(--tt-accent)', marginBottom: '0.75rem' }}>
             TODAY&apos;S PUZZLE
           </div>
