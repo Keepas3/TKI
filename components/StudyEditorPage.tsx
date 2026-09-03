@@ -343,6 +343,69 @@ type LiveState = {
   holdPiece: number | null;
 };
 
+// ── Publish modal ────────────────────────────────────────────────────────────
+
+function PublishModal({
+  initial, onConfirm, onCancel,
+}: { initial: string; onConfirm: (name: string) => void; onCancel: () => void }) {
+  const [name, setName] = React.useState(initial);
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <div style={{
+        background: 'rgba(18,18,24,0.98)', border: '1px solid rgba(255,255,255,0.12)',
+        borderRadius: 10, padding: '1.75rem 2rem', width: 340, maxWidth: '90vw',
+        display: 'flex', flexDirection: 'column', gap: '1rem',
+      }}>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#fff' }}>Publish study</h2>
+        <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
+          Your name will appear on the study. Leave blank to publish anonymously.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+          <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.05em' }}>YOUR NAME</label>
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') onConfirm(name); if (e.key === 'Escape') onCancel(); }}
+            placeholder="e.g. OnionWings"
+            maxLength={40}
+            style={{
+              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)',
+              borderRadius: 6, padding: '0.5rem 0.75rem', color: '#fff',
+              fontFamily: 'monospace', fontSize: 13, outline: 'none',
+            }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end', alignItems: 'center', marginTop: '0.25rem' }}>
+          <button
+            onClick={onCancel}
+            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', fontSize: 12, cursor: 'pointer', padding: '0.4rem 0.7rem' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(name)}
+            style={{
+              background: 'var(--tt-accent)', border: 'none', borderRadius: 6,
+              color: '#000', fontFamily: 'monospace', fontWeight: 700, fontSize: 13,
+              padding: '0.45rem 1.1rem', cursor: 'pointer',
+            }}
+          >
+            Publish
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StudyEditorPage({
   postId,
   initialTitle = '',
@@ -366,6 +429,10 @@ export default function StudyEditorPage({
   const [renamingIdx, setRenamingIdx] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [authorName, setAuthorName] = useState(() => {
+    try { return localStorage.getItem('study-author') ?? ''; } catch { return ''; }
+  });
   const [frozenFlash, setFrozenFlash] = useState(false);
 
   // Freeze options
@@ -546,11 +613,29 @@ export default function StudyEditorPage({
 
   const handleSave = async () => {
     if (title.trim().length < 4) { setSaveError('Title must be at least 4 characters.'); return; }
+    // New post: ask for author name first
+    if (!postId) { setShowPublishModal(true); return; }
+    // Editing existing post: save directly (author already set)
     setSaving(true);
     setSaveError(null);
     const result = await savePost(
       { title, topic, summary, chapters, is_public: isPublic },
-      null, postId, 'Anonymous',
+      null, postId, authorName.trim() || 'Anonymous',
+    );
+    setSaving(false);
+    if ('error' in result) { setSaveError(result.error); return; }
+    router.push(`/study/${result.id}`);
+  };
+
+  const confirmPublish = async (name: string) => {
+    const trimmed = name.trim();
+    try { if (trimmed) localStorage.setItem('study-author', trimmed); } catch { /* ignore */ }
+    setShowPublishModal(false);
+    setSaving(true);
+    setSaveError(null);
+    const result = await savePost(
+      { title, topic, summary, chapters, is_public: isPublic },
+      null, undefined, trimmed || 'Anonymous',
     );
     setSaving(false);
     if ('error' in result) { setSaveError(result.error); return; }
@@ -564,6 +649,15 @@ export default function StudyEditorPage({
       display: 'flex', height: '100%', overflow: 'hidden',
       fontFamily: 'monospace', fontSize: 13, color: '#e2e8f0',
     }}>
+
+      {/* ── Publish modal ── */}
+      {showPublishModal && (
+        <PublishModal
+          initial={authorName}
+          onConfirm={confirmPublish}
+          onCancel={() => setShowPublishModal(false)}
+        />
+      )}
 
       {/* ── Left panel ── */}
       <div style={{
