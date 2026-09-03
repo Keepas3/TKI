@@ -6,10 +6,10 @@ import { usePosts, TOPICS, type StudyPost } from './useStudy';
 import { StudyIcon, topicColor, topicLabel, timeAgo } from './studyUtils';
 
 // ---------------------------------------------------------------------------
-// Topic grid
+// Topic grid (exported so page.tsx can place it before the puzzle card)
 // ---------------------------------------------------------------------------
 
-function HomeTopicGrid() {
+export function HomeTopicGrid() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
       {TOPICS.map((t) => (
@@ -203,8 +203,6 @@ export default function HomeStudySection() {
 
   return (
     <div>
-      <HomeTopicGrid />
-
       {error && (
         <p style={{ margin: '2rem 0 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
           Couldn&apos;t load studies.
