@@ -32,6 +32,13 @@ ALTER TABLE study_posts ADD COLUMN IF NOT EXISTS chapters        text[]   NOT NU
 ALTER TABLE study_posts ADD COLUMN IF NOT EXISTS is_public       boolean  NOT NULL DEFAULT true;
 ALTER TABLE study_posts ADD COLUMN IF NOT EXISTS edit_token      text;
 
+-- Moderation: status column gates public visibility.
+-- 'published' = approved/signed-in; 'pending' = anonymous, awaiting review; 'rejected' = hidden.
+-- DEFAULT 'published' so existing rows are unaffected.
+ALTER TABLE study_posts ADD COLUMN IF NOT EXISTS
+  status text NOT NULL DEFAULT 'published'
+  CHECK (status IN ('pending', 'published', 'rejected'));
+
 ALTER TABLE study_posts ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "study_posts_read"   ON study_posts;
@@ -39,8 +46,8 @@ DROP POLICY IF EXISTS "study_posts_insert" ON study_posts;
 DROP POLICY IF EXISTS "study_posts_update" ON study_posts;
 DROP POLICY IF EXISTS "study_posts_delete" ON study_posts;
 
--- Anyone can read public posts.
-CREATE POLICY "study_posts_read"   ON study_posts FOR SELECT USING (is_public = true);
+-- Readers see only public + published posts.
+CREATE POLICY "study_posts_read"   ON study_posts FOR SELECT USING (is_public = true AND status = 'published');
 CREATE POLICY "study_posts_insert" ON study_posts FOR INSERT WITH CHECK (true);
 -- Open update/delete for the sandbox — no real auth, anon key is already client-side.
 CREATE POLICY "study_posts_update" ON study_posts FOR UPDATE USING (true) WITH CHECK (true);

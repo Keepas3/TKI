@@ -8,6 +8,20 @@ import {
 } from './useStudy';
 import BlockGame from './BlockGame';
 import { PieceIcon, PIECE_COLORS as PIECE_ICON_COLORS } from './StudyPostPage';
+import { useAuth } from './useAuth';
+
+const STUDY_RATE_KEY = 'tki-study-rate';
+function checkStudyRateLimit(): boolean {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STUDY_RATE_KEY) ?? '[]') as string[];
+    const now = Date.now();
+    const recent = stored.filter(ts => now - new Date(ts).getTime() < 86_400_000);
+    if (recent.length >= 2) return false;
+    recent.push(new Date().toISOString());
+    localStorage.setItem(STUDY_RATE_KEY, JSON.stringify(recent));
+    return true;
+  } catch { return true; }
+}
 
 // ── Color maps ───────────────────────────────────────────────────────────────
 
@@ -520,6 +534,7 @@ export default function StudyEditorPage({
   const [authorName, setAuthorName] = useState(() => {
     try { return localStorage.getItem('study-author') ?? ''; } catch { return ''; }
   });
+  const { user, displayName } = useAuth();
   const [frozenFlash, setFrozenFlash] = useState(false);
 
   // Freeze options
@@ -700,14 +715,32 @@ export default function StudyEditorPage({
 
   const handleSave = async () => {
     if (title.trim().length < 4) { setSaveError('Title must be at least 4 characters.'); return; }
-    // New post: ask for author name first
-    if (!postId) { setShowPublishModal(true); return; }
+    if (!postId) {
+      // Signed-in: publish immediately without modal
+      if (user) {
+        setSaving(true);
+        setSaveError(null);
+        const token = crypto.randomUUID();
+        const result = await savePost(
+          { title, topic, summary, chapters, is_public: isPublic },
+          user.id, undefined, displayName || null, token,
+        );
+        setSaving(false);
+        if ('error' in result) { setSaveError(result.error); return; }
+        addOwnedPostId(result.id);
+        setPublishedInfo({ id: result.id, token });
+        return;
+      }
+      // Anonymous: show modal to collect author name
+      setShowPublishModal(true);
+      return;
+    }
     // Editing existing post: save directly (author already set)
     setSaving(true);
     setSaveError(null);
     const result = await savePost(
       { title, topic, summary, chapters, is_public: isPublic },
-      null, postId, authorName.trim() || 'Anonymous',
+      user?.id ?? null, postId, user ? (displayName || null) : (authorName.trim() || 'Anonymous'),
     );
     setSaving(false);
     if ('error' in result) { setSaveError(result.error); return; }
@@ -715,6 +748,11 @@ export default function StudyEditorPage({
   };
 
   const confirmPublish = async (name: string) => {
+    if (!checkStudyRateLimit()) {
+      setSaveError("You've submitted 2 studies in the last 24 hours — come back tomorrow.");
+      setShowPublishModal(false);
+      return;
+    }
     const trimmed = name.trim();
     try { if (trimmed) localStorage.setItem('study-author', trimmed); } catch { /* ignore */ }
     setShowPublishModal(false);

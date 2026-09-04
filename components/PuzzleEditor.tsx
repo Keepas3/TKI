@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import BlockGame from './BlockGame';
 import { type PuzzleDifficulty, type PuzzleCategory, setDailyPuzzle } from './puzzleData';
 import { supabase } from '../app/utils/supabaseClient';
+import { useAuth } from './useAuth';
 
 const DRAFTS_KEY = 'puzzle-editor-drafts';
 const DAILY_KEY = 'puzzle-daily-id';
@@ -349,7 +350,7 @@ export default function PuzzleEditor() {
     setDailyId(id);
   }, []);
 
-  const [authorUsername, setAuthorUsername] = useState('');
+  const { user, displayName } = useAuth();
   const [submitState, setSubmitState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
 
   const handleSubmit = useCallback(async () => {
@@ -362,11 +363,12 @@ export default function PuzzleEditor() {
       description: description || null,
       board: captured.board,
       queue: captured.queue,
-      author_username: authorUsername.trim() || null,
+      author_username: displayName || null,
+      author_id: user?.id ?? null,
     });
     if (error) console.error('[puzzle submit]', error.message);
     setSubmitState(error ? 'error' : 'done');
-  }, [captured, name, difficulty, category, description, authorUsername]);
+  }, [captured, name, difficulty, category, description, displayName, user]);
 
   const snippet = captured ? `  {
     id: '${(name || 'new-puzzle').toLowerCase().replace(/\s+/g, '-')}',
@@ -855,18 +857,11 @@ export default function PuzzleEditor() {
                 </div>
               ) : (
                 <>
-                  <input
-                    value={authorUsername}
-                    onChange={e => setAuthorUsername(e.target.value)}
-                    placeholder="Your name (optional)"
-                    maxLength={40}
-                    style={{
-                      width: '100%', boxSizing: 'border-box',
-                      background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: 5, padding: '6px 10px', color: '#fff',
-                      fontFamily: 'monospace', fontSize: 11,
-                    }}
-                  />
+                  {user && (
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 2 }}>
+                      Submitting as <span style={{ color: 'rgba(255,255,255,0.7)' }}>{displayName}</span>
+                    </div>
+                  )}
                   <button
                     onClick={handleSubmit}
                     disabled={submitState === 'loading'}
@@ -882,7 +877,7 @@ export default function PuzzleEditor() {
                     {submitState === 'loading' ? 'Submitting…' : submitState === 'error' ? '✕ Error — try again' : '↑ Submit to Community'}
                   </button>
                   <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.22)', lineHeight: 1.5 }}>
-                    Pending review before it appears publicly.
+                    {user ? 'Pending review before it appears publicly.' : 'Sign in to link your submission to your account.'}
                   </div>
                 </>
               )}

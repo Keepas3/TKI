@@ -290,7 +290,9 @@ export async function savePost(
     return { id: existingId };
   }
 
-  const insertPayload = { ...payload, ...(editToken ? { edit_token: editToken } : {}) };
+  // Authenticated posts publish immediately; anonymous go to pending review.
+  const status = authorId ? 'published' : 'pending';
+  const insertPayload = { ...payload, status, ...(editToken ? { edit_token: editToken } : {}) };
   const { data, error } = await supabase.from('study_posts').insert(insertPayload).select('id').single();
   if (error) return { error: error.message };
   return { id: (data as { id: string }).id };

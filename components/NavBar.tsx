@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { getDailyPuzzleByDate, fetchDailyPuzzle } from './puzzleData';
+import { useAuth } from './useAuth';
+import { AvatarMark, avatarPresetById } from './avatarPresets';
 
 export const NAV_BAR_HEIGHT = 52;
 
@@ -137,6 +139,46 @@ function NavLink({ href, icon, label, active }: { href: string; icon: React.Reac
   );
 }
 
+function UserButton() {
+  const { user, displayName, avatarId } = useAuth();
+  if (user === undefined) return null;
+  if (user === null) {
+    return (
+      <Link href="/login" style={{
+        display: 'flex', alignItems: 'center', gap: '0.4rem',
+        padding: '0.28rem 0.75rem', borderRadius: '6px',
+        color: 'var(--tt-text-muted)', fontFamily: 'monospace', fontSize: '0.78rem',
+        textDecoration: 'none', flexShrink: 0, marginRight: '0.5rem',
+        transition: 'color 0.12s',
+      }}
+        onMouseOver={(e) => { e.currentTarget.style.color = 'var(--tt-text)'; }}
+        onMouseOut={(e) => { e.currentTarget.style.color = 'var(--tt-text-muted)'; }}
+      >
+        Sign In
+      </Link>
+    );
+  }
+  const avatar = avatarPresetById(avatarId);
+  return (
+    <Link href="/profile" style={{
+      display: 'flex', alignItems: 'center', gap: '0.45rem',
+      padding: '0.2rem 0.6rem 0.2rem 0.35rem', borderRadius: '6px',
+      border: '1px solid var(--tt-border)', backgroundColor: 'transparent',
+      color: 'var(--tt-text-muted)', fontFamily: 'monospace', fontSize: '0.75rem',
+      textDecoration: 'none', flexShrink: 0, marginRight: '0.5rem',
+      transition: 'color 0.12s, border-color 0.12s',
+    }}
+      onMouseOver={(e) => { e.currentTarget.style.color = 'var(--tt-text)'; e.currentTarget.style.borderColor = 'var(--tt-border-strong)'; }}
+      onMouseOut={(e) => { e.currentTarget.style.color = 'var(--tt-text-muted)'; e.currentTarget.style.borderColor = 'var(--tt-border)'; }}
+    >
+      <div style={{ width: 20, height: 20, borderRadius: '4px', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <AvatarMark preset={avatar} size={16} />
+      </div>
+      {displayName}
+    </Link>
+  );
+}
+
 export default function NavBar() {
   const path = usePathname();
   const [dailyPuzzleId, setDailyPuzzleId] = useState(() => getDailyPuzzleByDate().id);
@@ -191,6 +233,7 @@ export default function NavBar() {
         Daily Puzzle
       </Link>
 
+      <UserButton />
       <ThemeToggle />
     </header>
   );
