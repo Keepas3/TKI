@@ -46,7 +46,10 @@ export function useAuth() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { username } },
+      options: {
+        data: { username },
+        emailRedirectTo: `${window.location.origin}/login`,
+      },
     });
     if (error) return { error: error.message };
     return { needsConfirmation: !data.session };
