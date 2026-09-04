@@ -3,10 +3,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  TOPICS, BOARD_TYPES, newChapter, newTextBlock, savePost,
+  TOPICS, BOARD_TYPES, newChapter, newTextBlock, savePost, addOwnedPostId,
   type Chapter, type Topic, type BoardType, type TextBlock,
 } from './useStudy';
-import TetrisGame from './TetrisGame';
+import BlockGame from './BlockGame';
 import { PieceIcon, PIECE_COLORS as PIECE_ICON_COLORS } from './StudyPostPage';
 
 // ── Color maps ───────────────────────────────────────────────────────────────
@@ -88,16 +88,16 @@ function FrozenPreview({ board, activePiece }: { board: number[][]; activePiece?
 
 const iconBtnStyle: React.CSSProperties = {
   background: 'none', border: 'none',
-  color: 'rgba(255,255,255,0.4)', cursor: 'pointer',
+  color: 'var(--tt-text-faint)', cursor: 'pointer',
   fontSize: 11, padding: '1px 3px', borderRadius: 2,
   flexShrink: 0,
 };
 
 const smallBtnStyle: React.CSSProperties = {
   padding: '5px 0', borderRadius: 4,
-  border: '1px solid rgba(255,255,255,0.12)',
+  border: '1px solid var(--tt-border)',
   background: 'transparent',
-  color: 'rgba(255,255,255,0.45)',
+  color: 'var(--tt-text-muted)',
   fontFamily: 'monospace', fontSize: 10,
   cursor: 'pointer', outline: 'none',
   textAlign: 'center' as const,
@@ -127,7 +127,7 @@ function PieceInsertBar({ onInsert }: { onInsert: (token: string) => void }) {
           </button>
         );
       })}
-      <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.22)', marginLeft: 2, fontFamily: 'monospace' }}>insert piece</span>
+      <span style={{ fontSize: 9, color: 'var(--tt-text-dim)', marginLeft: 2, fontFamily: 'monospace' }}>insert piece</span>
     </div>
   );
 }
@@ -165,7 +165,7 @@ function TextBlockEditor({
   const baseStyle: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box', padding: '6px 8px',
     background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 4, color: '#e2e8f0', fontFamily: 'monospace', fontSize: 12,
+    borderRadius: 4, color: 'var(--tt-text)', fontFamily: 'monospace', fontSize: 12,
     resize: 'vertical' as const, outline: 'none',
   };
 
@@ -192,9 +192,9 @@ function TextBlockEditor({
           <button
             onClick={() => onChange({ ...block, level: block.level === 2 ? 3 : 2 })}
             style={{
-              padding: '4px 8px', background: 'rgba(255,255,255,0.1)',
+              padding: '4px 8px', background: 'var(--tt-surface-hover)',
               border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4,
-              color: '#e2e8f0', fontFamily: 'monospace', fontSize: 11,
+              color: 'var(--tt-text)', fontFamily: 'monospace', fontSize: 11,
               cursor: 'pointer', flexShrink: 0,
             }}
           >
@@ -266,7 +266,7 @@ function TextBlockEditor({
       borderBottom: '1px solid rgba(255,255,255,0.05)',
     }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center', paddingTop: 2 }}>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', width: 18, textAlign: 'center' }}>
+        <span style={{ fontSize: 10, color: 'var(--tt-text-faint)', width: 18, textAlign: 'center' }}>
           {typeLabel}
         </span>
         {onMoveUp && <button onClick={onMoveUp} style={{ ...iconBtnStyle, fontSize: 9 }} title="Move up">▲</button>}
@@ -359,16 +359,16 @@ function PublishModal({
       onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
     >
       <div style={{
-        background: 'rgba(18,18,24,0.98)', border: '1px solid rgba(255,255,255,0.12)',
+        background: 'var(--tt-bg-elevated)', border: '1px solid var(--tt-border-strong)',
         borderRadius: 10, padding: '1.75rem 2rem', width: 340, maxWidth: '90vw',
         display: 'flex', flexDirection: 'column', gap: '1rem',
       }}>
         <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#fff' }}>Publish study</h2>
-        <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: 12, color: 'var(--tt-text-muted)', lineHeight: 1.5 }}>
           Your name will appear on the study. Leave blank to publish anonymously.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-          <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.05em' }}>YOUR NAME</label>
+          <label style={{ fontSize: 11, color: 'var(--tt-text-muted)', letterSpacing: '0.05em' }}>YOUR NAME</label>
           <input
             autoFocus
             value={name}
@@ -377,7 +377,7 @@ function PublishModal({
             placeholder="e.g. OnionWings"
             maxLength={40}
             style={{
-              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)',
+              background: 'var(--tt-surface)', border: '1px solid var(--tt-border-strong)',
               borderRadius: 6, padding: '0.5rem 0.75rem', color: '#fff',
               fontFamily: 'monospace', fontSize: 13, outline: 'none',
             }}
@@ -386,7 +386,7 @@ function PublishModal({
         <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end', alignItems: 'center', marginTop: '0.25rem' }}>
           <button
             onClick={onCancel}
-            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', fontSize: 12, cursor: 'pointer', padding: '0.4rem 0.7rem' }}
+            style={{ background: 'none', border: 'none', color: 'var(--tt-text-faint)', fontFamily: 'monospace', fontSize: 12, cursor: 'pointer', padding: '0.4rem 0.7rem' }}
           >
             Cancel
           </button>
@@ -400,6 +400,92 @@ function PublishModal({
           >
             Publish
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Published success modal ──────────────────────────────────────────────────
+
+function PublishedModal({ id, editToken, onClose }: { id: string; editToken: string; onClose: () => void }) {
+  const [copied, setCopied] = React.useState(false);
+  const editUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/study/${id}/edit?token=${editToken}`
+    : `/study/${id}/edit?token=${editToken}`;
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(editUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div style={{
+        background: 'var(--tt-bg-elevated)', border: '1px solid var(--tt-border-strong)',
+        borderRadius: 10, padding: '1.75rem 2rem', width: 420, maxWidth: '90vw',
+        display: 'flex', flexDirection: 'column', gap: '1rem',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 18 }}>✓</span>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#4ade80' }}>Study published!</h2>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--tt-text-muted)', lineHeight: 1.5 }}>
+            Save this link to edit your study from any device. Anyone with the link can edit it.
+          </p>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
+            <div style={{
+              flex: 1, padding: '0.4rem 0.6rem', borderRadius: 5,
+              background: 'var(--tt-surface)', border: '1px solid var(--tt-border)',
+              fontFamily: 'monospace', fontSize: 10, color: 'var(--tt-text-muted)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {editUrl}
+            </div>
+            <button
+              onClick={copyLink}
+              style={{
+                flexShrink: 0, padding: '0.4rem 0.75rem', borderRadius: 5,
+                background: copied ? '#4ade8033' : 'var(--tt-surface)',
+                border: `1px solid ${copied ? '#4ade80' : 'var(--tt-border-strong)'}`,
+                color: copied ? '#4ade80' : 'var(--tt-text-muted)',
+                fontFamily: 'monospace', fontSize: 11, cursor: 'pointer',
+              }}
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+          <p style={{ margin: '0.25rem 0 0', fontSize: 10, color: 'var(--tt-text-faint)', lineHeight: 1.4 }}>
+            On this device, the Edit button will appear automatically on your study page.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', color: 'var(--tt-text-faint)', fontFamily: 'monospace', fontSize: 12, cursor: 'pointer', padding: '0.4rem 0.7rem' }}
+          >
+            Continue editing
+          </button>
+          <a
+            href={`/study/${id}`}
+            style={{
+              display: 'inline-flex', alignItems: 'center',
+              background: 'var(--tt-accent)', borderRadius: 6,
+              color: '#000', fontFamily: 'monospace', fontWeight: 700, fontSize: 13,
+              padding: '0.45rem 1.1rem', textDecoration: 'none',
+            }}
+          >
+            View study →
+          </a>
         </div>
       </div>
     </div>
@@ -430,6 +516,7 @@ export default function StudyEditorPage({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishedInfo, setPublishedInfo] = useState<{ id: string; token: string } | null>(null);
   const [authorName, setAuthorName] = useState(() => {
     try { return localStorage.getItem('study-author') ?? ''; } catch { return ''; }
   });
@@ -439,7 +526,7 @@ export default function StudyEditorPage({
   const [includePiece, setIncludePiece] = useState(true);
   const [includeGhost, setIncludeGhost] = useState(true);
 
-  // The live game state — updated every frame via the ref passed to TetrisGame
+  // The live game state — updated every frame via the ref passed to BlockGame
   const liveStateRef = useRef<LiveState | null>(null);
 
   // Focus state: game only captures keys when the user has clicked into it
@@ -633,13 +720,15 @@ export default function StudyEditorPage({
     setShowPublishModal(false);
     setSaving(true);
     setSaveError(null);
+    const token = crypto.randomUUID();
     const result = await savePost(
       { title, topic, summary, chapters, is_public: isPublic },
-      null, undefined, trimmed || 'Anonymous',
+      null, undefined, trimmed || 'Anonymous', token,
     );
     setSaving(false);
     if ('error' in result) { setSaveError(result.error); return; }
-    router.push(`/study/${result.id}`);
+    addOwnedPostId(result.id);
+    setPublishedInfo({ id: result.id, token });
   };
 
   const topicColor = TOPICS.find((t) => t.id === topic)?.color ?? '#94a3b8';
@@ -647,7 +736,7 @@ export default function StudyEditorPage({
   return (
     <div style={{
       display: 'flex', height: '100%', overflow: 'hidden',
-      fontFamily: 'monospace', fontSize: 13, color: '#e2e8f0',
+      fontFamily: 'monospace', fontSize: 13, color: 'var(--tt-text)',
     }}>
 
       {/* ── Publish modal ── */}
@@ -659,16 +748,25 @@ export default function StudyEditorPage({
         />
       )}
 
+      {/* ── Published success modal ── */}
+      {publishedInfo && (
+        <PublishedModal
+          id={publishedInfo.id}
+          editToken={publishedInfo.token}
+          onClose={() => setPublishedInfo(null)}
+        />
+      )}
+
       {/* ── Left panel ── */}
       <div style={{
         width: 190, flexShrink: 0,
         display: 'flex', flexDirection: 'column',
-        borderRight: '1px solid rgba(255,255,255,0.08)',
+        borderRight: '1px solid var(--tt-border)',
         overflow: 'hidden',
       }}>
         {/* Study metadata */}
         <div style={{ padding: '14px 12px 10px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ fontSize: 10, letterSpacing: 1.5, color: 'rgba(255,255,255,0.35)', marginBottom: 6, textTransform: 'uppercase' }}>
+          <div style={{ fontSize: 10, letterSpacing: 1.5, color: 'var(--tt-text-faint)', marginBottom: 6, textTransform: 'uppercase' }}>
             {postId ? 'Edit Study' : 'New Study'}
           </div>
           <input
@@ -679,9 +777,9 @@ export default function StudyEditorPage({
             style={{
               width: '100%', boxSizing: 'border-box',
               padding: '5px 7px', marginBottom: 6,
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              borderRadius: 4, color: '#e2e8f0',
+              background: 'var(--tt-surface)',
+              border: '1px solid var(--tt-border-strong)',
+              borderRadius: 4, color: 'var(--tt-text)',
               fontFamily: 'monospace', fontSize: 12, outline: 'none',
             }}
           />
@@ -691,8 +789,8 @@ export default function StudyEditorPage({
             style={{
               width: '100%', boxSizing: 'border-box',
               padding: '4px 6px', marginBottom: 7,
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'var(--tt-surface)',
+              border: '1px solid var(--tt-border-strong)',
               borderRadius: 4, color: topicColor,
               fontFamily: 'monospace', fontSize: 11, outline: 'none',
             }}
@@ -711,7 +809,7 @@ export default function StudyEditorPage({
                 style={{
                   flex: 1, padding: '3px 0', borderRadius: 4,
                   border: '1px solid rgba(255,255,255,0.12)',
-                  background: isPublic === pub ? 'rgba(255,255,255,0.12)' : 'transparent',
+                  background: isPublic === pub ? 'var(--tt-surface-hover)' : 'transparent',
                   color: isPublic === pub ? '#e2e8f0' : 'rgba(255,255,255,0.35)',
                   fontFamily: 'monospace', fontSize: 10,
                   cursor: 'pointer', outline: 'none',
@@ -725,7 +823,7 @@ export default function StudyEditorPage({
 
         {/* Board type selector */}
         <div style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ fontSize: 10, letterSpacing: 1.2, color: 'rgba(255,255,255,0.25)', marginBottom: 5, textTransform: 'uppercase' }}>
+          <div style={{ fontSize: 10, letterSpacing: 1.2, color: 'var(--tt-text-dim)', marginBottom: 5, textTransform: 'uppercase' }}>
             Display mode
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
@@ -738,7 +836,7 @@ export default function StudyEditorPage({
                   flex: 1, padding: '3px 0',
                   border: '1px solid rgba(255,255,255,0.12)',
                   borderRadius: 4,
-                  background: activeChapter.boardType === bt.id ? 'rgba(255,255,255,0.12)' : 'transparent',
+                  background: activeChapter.boardType === bt.id ? 'var(--tt-surface-hover)' : 'transparent',
                   color: activeChapter.boardType === bt.id ? '#e2e8f0' : 'rgba(255,255,255,0.4)',
                   fontFamily: 'monospace', fontSize: 10,
                   cursor: 'pointer', outline: 'none',
@@ -757,7 +855,7 @@ export default function StudyEditorPage({
                   style={{
                     flex: 1, padding: '3px 0', borderRadius: 4,
                     border: '1px solid rgba(255,255,255,0.12)',
-                    background: activeBoard === n ? 'rgba(255,255,255,0.1)' : 'transparent',
+                    background: activeBoard === n ? 'var(--tt-surface-hover)' : 'transparent',
                     color: activeBoard === n ? '#e2e8f0' : 'rgba(255,255,255,0.35)',
                     fontFamily: 'monospace', fontSize: 10,
                     cursor: 'pointer', outline: 'none',
@@ -775,7 +873,7 @@ export default function StudyEditorPage({
           <div style={{
             padding: '8px 12px 4px',
             fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase',
-            color: 'rgba(255,255,255,0.3)',
+            color: 'var(--tt-text-faint)',
           }}>
             Chapters
           </div>
@@ -786,14 +884,14 @@ export default function StudyEditorPage({
               style={{
                 display: 'flex', alignItems: 'center', gap: 4,
                 padding: '6px 8px 6px 12px',
-                background: safeIdx === i ? 'rgba(255,255,255,0.07)' : 'transparent',
+                background: safeIdx === i ? 'var(--tt-surface-hover)' : 'transparent',
                 borderLeft: safeIdx === i
                   ? '2px solid var(--tt-accent, #38bdf8)'
                   : '2px solid transparent',
                 cursor: 'pointer',
               }}
             >
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', width: 14, flexShrink: 0 }}>
+              <span style={{ fontSize: 10, color: 'var(--tt-text-faint)', width: 14, flexShrink: 0 }}>
                 {i + 1}
               </span>
               {renamingIdx === i ? (
@@ -806,9 +904,9 @@ export default function StudyEditorPage({
                   onClick={(e) => e.stopPropagation()}
                   style={{
                     flex: 1, padding: '2px 4px',
-                    background: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    borderRadius: 3, color: '#e2e8f0',
+                    background: 'var(--tt-surface-hover)',
+                    border: '1px solid var(--tt-border-strong)',
+                    borderRadius: 3, color: 'var(--tt-text)',
                     fontFamily: 'monospace', fontSize: 11, outline: 'none',
                   }}
                 />
@@ -816,7 +914,7 @@ export default function StudyEditorPage({
                 <>
                   <span style={{
                     flex: 1, fontSize: 11,
-                    color: safeIdx === i ? '#e2e8f0' : 'rgba(255,255,255,0.5)',
+                    color: safeIdx === i ? 'var(--tt-text)' : 'var(--tt-text-muted)',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
                     {ch.title || 'Untitled'}
@@ -846,8 +944,8 @@ export default function StudyEditorPage({
             style={{
               margin: '8px 12px', padding: '5px 0',
               background: 'transparent',
-              border: '1px dashed rgba(255,255,255,0.18)',
-              borderRadius: 4, color: 'rgba(255,255,255,0.35)',
+              border: '1px dashed var(--tt-border-strong)',
+              borderRadius: 4, color: 'var(--tt-text-faint)',
               fontFamily: 'monospace', fontSize: 11,
               cursor: 'pointer', outline: 'none',
             }}
@@ -857,7 +955,7 @@ export default function StudyEditorPage({
         </div>
 
         {/* Save */}
-        <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ padding: '10px 12px', borderTop: '1px solid var(--tt-border)', display: 'flex', flexDirection: 'column', gap: 5 }}>
           {saveError && <div style={{ fontSize: 10, color: '#f87171', lineHeight: 1.4 }}>{saveError}</div>}
           <button
             onClick={handleSave}
@@ -876,7 +974,7 @@ export default function StudyEditorPage({
         </div>
       </div>
 
-      {/* ── Center panel (live Tetris game) ── */}
+      {/* ── Center panel (live game) ── */}
       <div style={{
         flex: 1, display: 'flex', flexDirection: 'column',
         overflow: 'hidden', background: 'rgba(0,0,0,0.2)',
@@ -885,10 +983,10 @@ export default function StudyEditorPage({
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '8px 14px',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid var(--tt-border)',
           flexShrink: 0, flexWrap: 'wrap',
         }}>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', lineHeight: 1.4 }}>
+          <div style={{ fontSize: 10, color: 'var(--tt-text-faint)', lineHeight: 1.4 }}>
             Play to set up your board, then freeze.
           </div>
           <div style={{ flex: 1 }} />
@@ -932,7 +1030,7 @@ export default function StudyEditorPage({
               padding: '5px 12px', borderRadius: 4,
               border: '1px solid rgba(255,255,255,0.15)',
               background: 'transparent',
-              color: 'rgba(255,255,255,0.45)',
+              color: 'var(--tt-text-muted)',
               fontFamily: 'monospace', fontSize: 11,
               cursor: 'pointer', outline: 'none',
             }}
@@ -966,62 +1064,66 @@ export default function StudyEditorPage({
             justifyContent: 'center',
             overflow: 'auto',
             padding: '8px',
-            gap: 20,
+            gap: 40,
           }}
         >
-          {/* Game with click-to-focus overlay — scaled up 20% via CSS transform */}
-          <div style={{ position: 'relative', flexShrink: 0, transform: 'scale(1.2)', transformOrigin: 'center center', margin: '60px 30px' }}>
-            <TetrisGame
-              key={`study-editor-${safeIdx}-${activeBoard}-${gameKey}`}
-              mode="practice"
-              onMenu={resetGame}
-              initialBoard={frozenBoard.map((row) => row.map((v) => (v >= 8 ? 0 : v)))}
-              initialNextPieces={activeBoard === 1 ? activeChapter.nextPieces : activeChapter.nextPieces2}
-              initialHoldPiece={activeBoard === 1 ? activeChapter.holdPiece : activeChapter.holdPiece2}
-              initialActivePiece={activeBoard === 1 ? activeChapter.activePiece : activeChapter.activePiece2}
-              liveStateRef={liveStateRef}
-              focusRef={focusRef}
-            />
-            {/* Unfocused overlay — click to activate game controls */}
-            {!gameFocused && (
-              <div
-                onClick={() => { setGameFocused(true); focusRef.current = true; }}
-                style={{
-                  position: 'absolute', inset: 0,
-                  display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center', gap: 8,
-                  background: 'rgba(0,0,0,0.55)',
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                }}
-              >
-                <div style={{ fontSize: 28, opacity: 0.7 }}>▶</div>
-                <div style={{
-                  fontSize: 11, color: 'rgba(255,255,255,0.6)',
-                  fontFamily: 'monospace', letterSpacing: 1,
-                  textAlign: 'center', lineHeight: 1.5,
-                }}>
-                  Click to focus<br />
-                  <span style={{ fontSize: 9, opacity: 0.6 }}>Click outside to type</span>
+          {/* scale(1.2) expands the visual without growing the layout box, so add
+              enough right margin to keep the frozen preview outside the overflow zone */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
+            {/* Game with click-to-focus overlay — scaled up 20% via CSS transform */}
+            <div style={{ position: 'relative', flexShrink: 0, transform: 'scale(1.2)', transformOrigin: 'center center', margin: '60px 90px 60px 30px' }}>
+              <BlockGame
+                key={`study-editor-${safeIdx}-${activeBoard}-${gameKey}`}
+                mode="practice"
+                onMenu={resetGame}
+                initialBoard={frozenBoard.map((row) => row.map((v) => (v >= 8 ? 0 : v)))}
+                initialNextPieces={activeBoard === 1 ? activeChapter.nextPieces : activeChapter.nextPieces2}
+                initialHoldPiece={activeBoard === 1 ? activeChapter.holdPiece : activeChapter.holdPiece2}
+                initialActivePiece={activeBoard === 1 ? activeChapter.activePiece : activeChapter.activePiece2}
+                liveStateRef={liveStateRef}
+                focusRef={focusRef}
+              />
+              {/* Unfocused overlay — click to activate game controls */}
+              {!gameFocused && (
+                <div
+                  onClick={() => { setGameFocused(true); focusRef.current = true; }}
+                  style={{
+                    position: 'absolute', inset: 0,
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: 8,
+                    background: 'rgba(0,0,0,0.55)',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                  }}
+                >
+                  <div style={{ fontSize: 28, opacity: 0.7 }}>▶</div>
+                  <div style={{
+                    fontSize: 11, color: 'rgba(255,255,255,0.6)',
+                    fontFamily: 'monospace', letterSpacing: 1,
+                    textAlign: 'center', lineHeight: 1.5,
+                  }}>
+                    Click to focus<br />
+                    <span style={{ fontSize: 9, opacity: 0.6 }}>Click outside to type</span>
+                  </div>
                 </div>
+              )}
+            </div>
+            {(frozenBoard.some((row) => row.some((v) => v !== 0)) ||
+              (activeBoard === 1 ? activeChapter.activePiece : activeChapter.activePiece2)) && (
+              <div style={{ flexShrink: 0 }}>
+                <FrozenPreview
+                  board={frozenBoard}
+                  activePiece={activeBoard === 1 ? activeChapter.activePiece : activeChapter.activePiece2}
+                />
               </div>
             )}
           </div>
-          {(frozenBoard.some((row) => row.some((v) => v !== 0)) ||
-            (activeBoard === 1 ? activeChapter.activePiece : activeChapter.activePiece2)) && (
-            <div style={{ flexShrink: 0, alignSelf: 'center' }}>
-              <FrozenPreview
-                board={frozenBoard}
-                activePiece={activeBoard === 1 ? activeChapter.activePiece : activeChapter.activePiece2}
-              />
-            </div>
-          )}
         </div>
 
         {/* Hint below game */}
         <div style={{
           padding: '6px 14px',
-          borderTop: '1px solid rgba(255,255,255,0.06)',
+          borderTop: '1px solid var(--tt-border)',
           flexShrink: 0,
           fontSize: 10, color: 'rgba(255,255,255,0.2)',
           textAlign: 'center',
@@ -1035,12 +1137,12 @@ export default function StudyEditorPage({
       <div style={{
         width: 300, flexShrink: 0,
         display: 'flex', flexDirection: 'column',
-        borderLeft: '1px solid rgba(255,255,255,0.08)',
+        borderLeft: '1px solid var(--tt-border)',
         overflow: 'hidden',
       }}>
         {/* Chapter header */}
-        <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-          <div style={{ fontSize: 10, letterSpacing: 1.5, color: 'rgba(255,255,255,0.3)', marginBottom: 5, textTransform: 'uppercase' }}>
+        <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--tt-border)', flexShrink: 0 }}>
+          <div style={{ fontSize: 10, letterSpacing: 1.5, color: 'var(--tt-text-faint)', marginBottom: 5, textTransform: 'uppercase' }}>
             Chapter {safeIdx + 1}
           </div>
           <input
@@ -1049,9 +1151,9 @@ export default function StudyEditorPage({
             placeholder="Chapter title…"
             style={{
               width: '100%', boxSizing: 'border-box', padding: '4px 7px',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 4, color: '#e2e8f0',
+              background: 'var(--tt-surface)',
+              border: '1px solid var(--tt-border)',
+              borderRadius: 4, color: 'var(--tt-text)',
               fontFamily: 'monospace', fontSize: 12, outline: 'none', marginBottom: 6,
             }}
           />
@@ -1063,9 +1165,9 @@ export default function StudyEditorPage({
             rows={2}
             style={{
               width: '100%', boxSizing: 'border-box', padding: '4px 7px',
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 4, color: 'rgba(255,255,255,0.5)',
+              background: 'var(--tt-surface)',
+              border: '1px solid var(--tt-border)',
+              borderRadius: 4, color: 'var(--tt-text-muted)',
               fontFamily: 'monospace', fontSize: 10,
               resize: 'none' as const, outline: 'none',
             }}
@@ -1094,8 +1196,8 @@ export default function StudyEditorPage({
                 style={{
                   padding: '2px 7px', borderRadius: 3,
                   border: '1px solid rgba(255,255,255,0.14)',
-                  background: 'rgba(255,255,255,0.07)',
-                  color: 'rgba(255,255,255,0.7)',
+                  background: 'var(--tt-surface)',
+                  color: 'var(--tt-text-muted)',
                   fontFamily: 'monospace', fontWeight: 700, fontSize: 10,
                   cursor: 'pointer', outline: 'none',
                 }}
@@ -1126,7 +1228,7 @@ export default function StudyEditorPage({
                 padding: '2px 8px', borderRadius: 3,
                 border: '1px solid rgba(255,255,255,0.1)',
                 background: 'transparent',
-                color: 'rgba(255,255,255,0.45)',
+                color: 'var(--tt-text-muted)',
                 fontFamily: 'monospace', fontSize: 10,
                 cursor: 'pointer', outline: 'none',
               }}
@@ -1135,7 +1237,7 @@ export default function StudyEditorPage({
             </button>
 
             {/* Divider */}
-            <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.1)', margin: '0 2px', flexShrink: 0 }} />
+            <div style={{ width: 1, height: 14, background: 'var(--tt-surface-hover)', margin: '0 2px', flexShrink: 0 }} />
 
             {/* Piece insert buttons */}
             <PieceInsertBar onInsert={insertPieceToken} />
@@ -1152,7 +1254,7 @@ export default function StudyEditorPage({
               padding: '12px 12px',
               background: 'transparent',
               border: 'none',
-              color: '#e2e8f0',
+              color: 'var(--tt-text)',
               fontFamily: `'Inter', system-ui, sans-serif`,
               fontSize: 13, lineHeight: 1.75,
               resize: 'none', outline: 'none',
@@ -1162,7 +1264,7 @@ export default function StudyEditorPage({
           {/* Gentle hint */}
           <div style={{
             padding: '4px 12px 8px',
-            fontSize: 9.5, color: 'rgba(255,255,255,0.18)',
+            fontSize: 9.5, color: 'var(--tt-text-dim)',
             fontFamily: 'monospace', flexShrink: 0,
           }}>
             Enter twice = new paragraph · toolbar buttons work on current line

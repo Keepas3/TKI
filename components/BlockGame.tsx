@@ -1,7 +1,7 @@
 'use client';
 
 import React, { memo, useEffect, useRef, useState } from 'react';
-import { COLS, ROWS, BLOCK_SIZE, COLORS, PIECES } from './tetrisConstants';
+import { COLS, ROWS, BLOCK_SIZE, COLORS, PIECES } from './gameConstants';
 import { supabase } from '../app/utils/supabaseClient'; 
 
 // Mirrors useOnlineRoom's BoardSnapshotPayload minus guestId — one object
@@ -38,7 +38,7 @@ interface BoardSnapshot {
   pendingGarbage?: number;
 }
 
-interface TetrisGameProps {
+interface BlockGameProps {
   mode: string;
   onMenu: () => void;
   // Versus-mode-only bridge to the room's Realtime channel (owned by
@@ -209,10 +209,11 @@ interface TetrisGameProps {
   // Journey-mode event callbacks — thin emitters fired from the game engine,
   // work for any mode. JourneyApp wires these to track challenge progress
   // without TetrisGame knowing anything about challenge state.
-  onTSpin?: (type: 'single' | 'double' | 'triple') => void;
-  onLinesCleared?: (count: number, isTetris: boolean, isPerfectClear: boolean) => void;
+  onTRotate?: (type: 'single' | 'double' | 'triple') => void;
+  onLinesCleared?: (count: number, isQuad: boolean, isPerfectClear: boolean) => void;
   onCombo?: (streak: number) => void;
-  onPiecePlaced?: () => void;
+  // remaining is passed in fixedQueue (puzzle) mode; undefined otherwise.
+  onPiecePlaced?: (remaining?: number) => void;
   onTopout?: () => void;
   // Build Battle: freeze all input + gravity so the board is locked in place
   // when the timer expires. The board state can still be read externally for
@@ -225,6 +226,10 @@ interface TetrisGameProps {
   // Build Battle: skip sweepLines after each lock so completed rows are NOT
   // cleared — lets players build arbitrary structures including full rows.
   noLineClear?: boolean;
+  // Puzzle player mode: keep undo/redo/gravity but disable piece-spawn hotkeys
+  // (1-7) and the Clear Board action so the player can't alter the queue or
+  // blank the initial setup. The sandbox panel still shows undo/redo/gravity.
+  limitedSandbox?: boolean;
   // Siege: Commander powerup effects on this P1's board
   fogActive?: boolean;
   boardPaused?: boolean;
@@ -261,6 +266,9 @@ const SPAWN_HOTKEY_ACTIONS = [
   { type: 5, action: 'Spawn Z' as const },
   { type: 6, action: 'Spawn J' as const },
   { type: 7, action: 'Spawn L' as const },
+  { type: 10, action: 'Spawn 1×1' as const },
+  { type: 11, action: 'Spawn 1×2' as const },
+  { type: 12, action: 'Spawn Tri' as const },
 ];
 
 // The board-level (non-piece) sandbox hotkeys, shown in their own small grid.
@@ -290,6 +298,16 @@ const calculateDropInterval = (level: number) => {
   return speed < 15 ? 0 : speed;
 };
 
+// Named gravity speeds used in sandbox/study/puzzle modes.
+const GRAVITY_TIERS = [
+  { name: 'Slow',    level: 3  },
+  { name: 'Relaxed', level: 6  },
+  { name: 'Medium',  level: 10 },
+  { name: 'Fast',    level: 14 },
+  { name: 'Instant', level: 20 },
+] as const;
+const SANDBOX_DEFAULT_TIER = 0;
+
 const WALL_KICKS: Record<string, {x: number, y: number}[]> = {
   '0-1': [{x:0,y:0}, {x:-1,y:0}, {x:-1,y:-1}, {x:0,y:2},  {x:-1,y:2}],
   '1-0': [{x:0,y:0}, {x:1,y:0},  {x:1,y:1},   {x:0,y:-2}, {x:1,y:-2}],
@@ -304,11 +322,11 @@ const WALL_KICKS: Record<string, {x: number, y: number}[]> = {
 const I_WALL_KICKS: Record<string, {x: number, y: number}[]> = {
   '0-1': [{x:0,y:0}, {x:-2,y:0}, {x:1,y:0},  {x:-2,y:1},  {x:1,y:-2}],
   '1-0': [{x:0,y:0}, {x:2,y:0},  {x:-1,y:0}, {x:2,y:-1},  {x:-1,y:2}],
-  '1-2': [{x:0,y:0}, {x:-1,y:0}, {x:2,y:0},  {x:-1,y:-2}, {x:2,y:1}],
+  '1-2': [{x:0,y:0}, {x:-1,y:0}, {x:2,y:0},  {x:2,y:1},   {x:-1,y:-2}],
   '2-1': [{x:0,y:0}, {x:1,y:0},  {x:-2,y:0}, {x:1,y:2},   {x:-2,y:-1}],
   '2-3': [{x:0,y:0}, {x:2,y:0},  {x:-1,y:0}, {x:2,y:-1},  {x:-1,y:2}],
-  '3-2': [{x:0,y:0}, {x:-2,y:0}, {x:1,y:0},  {x:-2,y:1},  {x:1,y:-2}],
-  '3-0': [{x:0,y:0}, {x:1,y:0},  {x:-2,y:0}, {x:1,y:2},   {x:-2,y:-1}],
+  '3-2': [{x:0,y:0}, {x:1,y:0},  {x:-2,y:0}, {x:-2,y:1},  {x:1,y:-2}],
+  '3-0': [{x:0,y:0}, {x:-1,y:0}, {x:2,y:0},  {x:-1,y:-2}, {x:2,y:1}],
   '0-3': [{x:0,y:0}, {x:-1,y:0}, {x:2,y:0},  {x:-1,y:-2}, {x:2,y:1}],
 };
 
@@ -622,7 +640,7 @@ const TouchControlButton = ({
 // 2. MAIN REACT COMPONENT
 // ==========================================
 
-export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, onEliminated, eliminatedOpponentIds, opponentIds, enemyIds, opponentTeams, selfTeam, onRematchMenu, onMatchHome, seed, startingLevel, maxLevel, lives, onBoardUpdate, opponentBoards, opponentNicknames, onMatchWin, quitVotes, selfQuitVote, quitVoteDeadline, onQuitVote, onRetractQuitVote, sharedNextHold, timeBasedGravity, liveStateRef, focusRef, initialBoard, initialNextPieces, initialHoldPiece, initialActivePiece, fixedQueue, onPerfectClear, onQueueExhausted, suppressPauseOverlay, suppressCountdown, onPieceLock, onAllClear, onUndo, onRedo, clearBoardRef, onTSpin, onLinesCleared, onCombo, onPiecePlaced, onTopout, inputFrozen, externalSpawnRef, noLineClear, fogActive, boardPaused, gravityMultiplier, lockRotationActive, incomingLineClear, incomingClearBoard, incomingMinoCannon }: TetrisGameProps) {
+export default function BlockGame({ mode, onMenu, onAttack, incomingGarbage, onEliminated, eliminatedOpponentIds, opponentIds, enemyIds, opponentTeams, selfTeam, onRematchMenu, onMatchHome, seed, startingLevel, maxLevel, lives, onBoardUpdate, opponentBoards, opponentNicknames, onMatchWin, quitVotes, selfQuitVote, quitVoteDeadline, onQuitVote, onRetractQuitVote, sharedNextHold, timeBasedGravity, liveStateRef, focusRef, initialBoard, initialNextPieces, initialHoldPiece, initialActivePiece, fixedQueue, onPerfectClear, onQueueExhausted, suppressPauseOverlay, suppressCountdown, onPieceLock, onAllClear, onUndo, onRedo, clearBoardRef, onTRotate, onLinesCleared, onCombo, onPiecePlaced, onTopout, inputFrozen, externalSpawnRef, noLineClear, limitedSandbox, fogActive, boardPaused, gravityMultiplier, lockRotationActive, incomingLineClear, incomingClearBoard, incomingMinoCannon }: BlockGameProps) {
   // 'practice' = Sandbox's single-player ruleset (adjustable gravity, spawn
   // hotkeys, clear-on-topout, no leaderboard) running inside the same
   // multiplayer room/preview plumbing 'versus' uses, minus the competitive
@@ -680,7 +698,9 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
   
   const board = useRef<number[][]>(initialBoard ? initialBoard.map((r) => [...r]) : createMatrix(COLS, ROWS));
   const dropCounter = useRef(0);
-  const dropInterval = useRef(calculateDropInterval(startingLevel ?? 1));
+  const _sandboxDefaultLevel = (mode === 'standard' || mode === 'practice') && !startingLevel
+    ? GRAVITY_TIERS[SANDBOX_DEFAULT_TIER].level : (startingLevel ?? 1);
+  const dropInterval = useRef(calculateDropInterval(_sandboxDefaultLevel));
   const lastTime = useRef(0);
   
   const gameStartTimeRef = useRef(0);
@@ -695,7 +715,7 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
 
   const scoreRef = useRef(0); 
   const linesRef = useRef(0);
-  const levelRef = useRef(startingLevel ?? 1);
+  const levelRef = useRef(_sandboxDefaultLevel);
   const lastMoveRef = useRef<'move' | 'rotate' | 'drop' | null>(null);
   const b2bRef = useRef(0);
   const b2bAnimKeyRef = useRef(0);
@@ -742,7 +762,7 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
   // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { onRedoRef.current = onRedo; }, [onRedo]);
   const onAttackRef = useRef(onAttack);
-  const onTSpinRef = useRef(onTSpin);
+  const onTRotateRef = useRef(onTRotate);
   const onLinesClearedRef = useRef(onLinesCleared);
   const onComboRef = useRef(onCombo);
   const onPiecePlacedRef = useRef(onPiecePlaced);
@@ -750,7 +770,7 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
   // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { onAttackRef.current = onAttack; }, [onAttack]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  React.useEffect(() => { onTSpinRef.current = onTSpin; }, [onTSpin]);
+  React.useEffect(() => { onTRotateRef.current = onTRotate; }, [onTRotate]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { onLinesClearedRef.current = onLinesCleared; }, [onLinesCleared]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -825,6 +845,7 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
   // near-instantly) — this sets dropInterval to Infinity so it never ticks.
   const [zeroGravity, setZeroGravity] = useState(false);
   const zeroGravityRef = useRef(false);
+  const [sandboxTierIdx, setSandboxTierIdx] = useState(SANDBOX_DEFAULT_TIER);
   // Versus-only: which end state the match hit (topping out, or outlasting
   // every other opponent), read by the LEADERBOARD-state overlay below.
   const [versusOutcome, setVersusOutcome] = useState<'won-last-standing' | 'lost-topout'>('lost-topout');
@@ -1146,6 +1167,7 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
     'Undo': 'u', 'Redo': 'y', 'Clear Board': 'r', 'Toggle 0-G': 'g',
     'Spawn I': '1', 'Spawn O': '2', 'Spawn T': '3', 'Spawn S': '4',
     'Spawn Z': '5', 'Spawn J': '6', 'Spawn L': '7',
+    'Spawn 1×1': '8', 'Spawn 1×2': '9', 'Spawn Tri': '0',
   });
   const controlsRef = useRef(controls);
 
@@ -1164,33 +1186,43 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
   }, []);
 
   useEffect(() => {
-    const savedTuning = localStorage.getItem('tetrisTuning');
-    const savedControls = localStorage.getItem('tetrisControls');
-    
+    const savedTuning = localStorage.getItem('gameTuning') ?? localStorage.getItem('tetrisTuning');
+    const savedControls = localStorage.getItem('gameControls') ?? localStorage.getItem('tetrisControls');
+
     if (savedTuning) {
-      try { setTuning(JSON.parse(savedTuning)); } catch (e) { console.error('Failed to parse tuning'); }
+      try {
+        const parsed = JSON.parse(savedTuning);
+        setTuning(parsed);
+        localStorage.setItem('gameTuning', JSON.stringify(parsed));
+        localStorage.removeItem('tetrisTuning');
+      } catch (e) { console.error('Failed to parse tuning'); }
     }
     if (savedControls) {
       // Merge onto the defaults rather than replacing outright — a saved
       // object from before the sandbox hotkeys existed wouldn't have those
       // keys, and indexing a missing key later (e.g. `.replace()` on it in
       // the Hotkeys UI) would throw.
-      try { setControls(prev => ({ ...prev, ...JSON.parse(savedControls) })); } catch (e) { console.error('Failed to parse controls'); }
+      try {
+        const parsed = JSON.parse(savedControls);
+        setControls(prev => ({ ...prev, ...parsed }));
+        localStorage.setItem('gameControls', JSON.stringify({ ...controls, ...parsed }));
+        localStorage.removeItem('tetrisControls');
+      } catch (e) { console.error('Failed to parse controls'); }
     }
     setSettingsLoaded(true);
   }, []);
 
-  useEffect(() => { 
-    tuningRef.current = tuning; 
+  useEffect(() => {
+    tuningRef.current = tuning;
     if (settingsLoaded) {
-      localStorage.setItem('tetrisTuning', JSON.stringify(tuning));
+      localStorage.setItem('gameTuning', JSON.stringify(tuning));
     }
   }, [tuning, settingsLoaded]);
 
-  useEffect(() => { 
-    controlsRef.current = controls; 
+  useEffect(() => {
+    controlsRef.current = controls;
     if (settingsLoaded) {
-      localStorage.setItem('tetrisControls', JSON.stringify(controls));
+      localStorage.setItem('gameControls', JSON.stringify(controls));
     }
   }, [controls, settingsLoaded]);
 
@@ -1198,12 +1230,12 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
   const dasTimers = useRef({ das: 0, arr: 0, dcd: 0 });
 
   const [uiState, setUiState] = useState({
-    score: 0, lines: 0, level: 1, next: nextPiecesRef.current.slice(0, 5), hold: null as number | null, actionText: '', b2bStreak: 0, b2bAnimKey: 0
+    score: 0, lines: 0, level: 1, combo: 0, next: nextPiecesRef.current.slice(0, 5), hold: null as number | null, actionText: '', b2bStreak: 0, b2bAnimKey: 0
   });
 
   const syncUi = () => {
     setUiState({
-      score: scoreRef.current, lines: linesRef.current, level: levelRef.current,
+      score: scoreRef.current, lines: linesRef.current, level: levelRef.current, combo: comboRef.current,
       next: nextPiecesRef.current.slice(0, 5), hold: holdPieceRef.current, actionText: actionTextRef.current.text,
       b2bStreak: b2bRef.current, b2bAnimKey: b2bAnimKeyRef.current,
     });
@@ -1233,7 +1265,7 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
   const fetchLeaderboard = async () => {
     try {
       const { data, error } = await supabase
-        .from('tetris_scores')
+        .from('game_scores')
         .select('name, score, level, mode')
         .eq('mode', mode) 
         .order('score', { ascending: mode === 'sprint' }) 
@@ -1250,10 +1282,7 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
   };
 
   useEffect(() => {
-    // Sandbox/Practice don't score or compete, and versus/coop/teams/
-    // teams-coop matches aren't ranked against the solo leaderboard either
-    // — none of them have one to show or fetch.
-    if (!isSandboxRules && mode !== 'versus' && mode !== 'coop' && !isTeams && !isTeamsCoop && !isArena) fetchLeaderboard();
+    if (mode === 'sprint') fetchLeaderboard();
   }, [mode, isSandboxRules, isTeams, isTeamsCoop]);
 
   const saveHighScore = async () => {
@@ -1275,7 +1304,7 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
 
     try {
       const { error } = await supabase
-        .from('tetris_scores')
+        .from('game_scores')
         .insert([{ name, score, level, mode }]);
 
       if (error) {
@@ -1290,7 +1319,7 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
     }
   };
 
-  const isTSpin = () => {
+  const isTRotate = () => {
     if (player.current.type !== 3) return false;
     if (lastMoveRef.current !== 'rotate') return false;
 
@@ -1535,9 +1564,9 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
     // Fire before merge so the callback sees the piece type that is locking.
     if (isSandboxRules) onPieceLockRef.current?.(player.current.type);
     merge(board.current, player.current);
-    const tSpin = isTSpin();
+    const tSpin = isTRotate();
     const linesCleared = noLineClearRef.current ? 0 : sweepLines(board.current);
-    onPiecePlacedRef.current?.();
+    onPiecePlacedRef.current?.(fixedQueueRef.current ? nextPiecesRef.current.length : undefined);
 
     // Perfect Clear detection for puzzle mode: all cells empty after line clear.
     if (fixedQueueRef.current && linesCleared > 0 && board.current.every(row => row.every(c => c === 0))) {
@@ -1561,28 +1590,21 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
       const isPerfectClear = board.current.every(row => row.every(c => c === 0));
       onLinesClearedRef.current?.(linesCleared, !tSpin && linesCleared === 4, isPerfectClear);
       if (comboRef.current > 0) onComboRef.current?.(comboRef.current);
-      if (tSpin) onTSpinRef.current?.(linesCleared === 1 ? 'single' : linesCleared === 2 ? 'double' : 'triple');
-      let baseScore = 0;
+      if (tSpin) onTRotateRef.current?.(linesCleared === 1 ? 'single' : linesCleared === 2 ? 'double' : 'triple');
       let isDifficult = false;
       let actionStr = '';
 
       if (tSpin) {
         isDifficult = true;
-        if (linesCleared === 1) { baseScore = 800; actionStr = 'T-Rotate Single'; }
-        else if (linesCleared === 2) { baseScore = 1200; actionStr = 'T-Rotate Double'; }
-        else if (linesCleared === 3) { baseScore = 1600; actionStr = 'T-Rotate Triple'; }
+        if (linesCleared === 1) { actionStr = 'T-Rotate Single'; }
+        else if (linesCleared === 2) { actionStr = 'T-Rotate Double'; }
+        else if (linesCleared === 3) { actionStr = 'T-Rotate Triple'; }
       } else {
-        if (linesCleared === 1) { baseScore = 100; }
-        else if (linesCleared === 2) { baseScore = 300; }
-        else if (linesCleared === 3) { baseScore = 500; }
-        else if (linesCleared === 4) { baseScore = 800; actionStr = 'Quad'; isDifficult = true; }
+        if (linesCleared === 4) { actionStr = 'Quad'; isDifficult = true; }
       }
 
-      let calculatedScore = baseScore * levelRef.current;
-      
       if (isDifficult) {
         if (b2bRef.current > 0) {
-          calculatedScore = Math.floor(calculatedScore * 1.5);
           actionStr = 'B2B ' + actionStr;
           if (mode === 'versus' || isTeams || isTeamsCoop || isArena) attack += 1;
         }
@@ -1593,13 +1615,8 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
       }
 
       if (comboRef.current > 0) {
-        calculatedScore += 50 * comboRef.current * levelRef.current;
         actionStr += `\n${comboRef.current} Combo`;
         if (mode === 'versus' || isTeams || isTeamsCoop || isArena) attack += COMBO_ATTACK[Math.min(comboRef.current, COMBO_ATTACK.length - 1)];
-      }
-
-      if (mode === 'blitz' || isSandboxRules || mode === 'coop') {
-        scoreRef.current += calculatedScore;
       }
 
       linesRef.current += linesCleared;
@@ -1627,7 +1644,6 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
     } else {
       comboRef.current = -1;
       if (tSpin) {
-        if (mode === 'blitz' || isSandboxRules || mode === 'coop') scoreRef.current += 400 * levelRef.current;
         actionTextRef.current = { text: 'T-SPIN', timer: 1500 };
       }
     }
@@ -1721,10 +1737,6 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
     }
     if (droppedThisFrame > 0) {
       lastMoveRef.current = 'drop';
-      if (isSoftDrop && (mode === 'blitz' || isSandboxRules || mode === 'coop')) {
-        scoreRef.current += droppedThisFrame;
-        syncUi();
-      }
     }
   };
 
@@ -1734,8 +1746,7 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
     lastHardDropTimeRef.current = now;
 
     const dist = getGhostY() - player.current.pos.y;
-    if (mode === 'blitz' || isSandboxRules || mode === 'coop') scoreRef.current += dist * 2;
-    player.current.pos.y += dist; 
+    player.current.pos.y += dist;
     lastMoveRef.current = 'drop';
     lockPiece(); 
   };
@@ -2290,7 +2301,6 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
            if (tuningRef.current.sdf >= 41 || zeroGravityRef.current) {
               const dist = getGhostY() - player.current.pos.y;
               if (dist > 0) {
-                if (mode === 'blitz' || isSandboxRules || mode === 'coop') scoreRef.current += dist;
                 player.current.pos.y += dist;
                 lastMoveRef.current = 'drop';
                 syncUi();
@@ -2504,9 +2514,9 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
       else if (!e.ctrlKey && !e.metaKey && e.key === c['Hold']) { holdPiece(); countAction(); }
       else if (isSandboxRules && e.key === c['Undo']) undoSandbox();
       else if (isSandboxRules && e.key === c['Redo']) redoSandbox();
-      else if (isSandboxRules && e.key === c['Clear Board']) clearSandboxBoard();
+      else if (isSandboxRules && !limitedSandbox && e.key === c['Clear Board']) clearSandboxBoard();
       else if (isSandboxRules && e.key === c['Toggle 0-G']) toggleZeroGravity();
-      else if (isSandboxRules) {
+      else if (isSandboxRules && !limitedSandbox) {
         const pieceHotkey = SPAWN_HOTKEY_ACTIONS.find((p) => !e.ctrlKey && !e.metaKey && e.key === c[p.action]);
         if (pieceHotkey) spawnSandboxPiece(pieceHotkey.type);
       }
@@ -2824,10 +2834,10 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
               GAME OVER
             </h3>
             <p style={{ color: 'white', fontSize: '2rem', fontWeight: 'bold', textShadow: '0 0 10px rgba(255,255,255,0.5)', margin: '0 0 0.5rem 0' }}>
-              {uiState.score}
+              {uiState.lines} lines
             </p>
             <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem', margin: '0 0 2rem 0' }}>
-              Level {uiState.level} · {uiState.lines} lines
+              Level {uiState.level}
             </p>
             <button
               onClick={onMatchHome ?? onRematchMenu}
@@ -2838,8 +2848,29 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
           </div>
         )}
 
+        {/* BLITZ GAME-OVER OVERLAY */}
+        {gameState === 'LEADERBOARD' && mode === 'blitz' && (
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.95)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 30, padding: '2rem 1.5rem' }}>
+            <h3 style={{ color: 'var(--tt-accent)', letterSpacing: '0.15em', marginBottom: '1rem', marginTop: 0, fontSize: '1.1rem', textAlign: 'center' }}>TIME&apos;S UP</h3>
+            <p style={{ color: 'white', fontSize: '2rem', fontWeight: 'bold', textShadow: '0 0 10px rgba(255,255,255,0.5)', margin: '0 0 0.5rem 0' }}>
+              {uiState.lines} lines
+            </p>
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem', margin: '0 0 2rem 0' }}>
+              Level {uiState.level}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+              <button onClick={restartGame} style={{ backgroundColor: 'var(--tt-accent)', color: 'white', border: 'none', borderRadius: '4px', padding: '12px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                Play Again
+              </button>
+              <button onClick={onMenu} style={{ backgroundColor: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.7)', borderRadius: '4px', padding: '10px', cursor: 'pointer', fontSize: '12px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                Main Menu
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* LEADERBOARD OVERLAY */}
-        {gameState === 'LEADERBOARD' && mode !== 'versus' && !isTeams && !isTeamsCoop && !isArena && mode !== 'coop' && (
+        {gameState === 'LEADERBOARD' && mode === 'sprint' && (
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.95)', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 30, padding: '2rem 1.5rem', overflowY: 'auto' }}>
             <h3 style={{ color: 'white', letterSpacing: '0.2em', marginBottom: '1.5rem', marginTop: 0, fontSize: '1.25rem', textShadow: '0 0 10px rgba(255,255,255,0.3)' }}>LEADERBOARD</h3>
             
@@ -2891,7 +2922,11 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
                 <p style={{ color: 'var(--tt-accent)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 0.75rem 0', alignSelf: 'flex-start' }}>Keybinds</p>
                 <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '1.5rem' }}>
                   {Object.entries(controls)
-                    .filter(([action]) => action !== 'null' && !(SANDBOX_HOTKEY_ACTIONS as readonly string[]).includes(action))
+                    .filter(([action]) =>
+                      action !== 'null'
+                      && !action.startsWith('Spawn ')
+                      && !(SANDBOX_HOTKEY_ACTIONS as readonly string[]).includes(action)
+                    )
                     .map(([action, keyName]) => (
                     <div key={action} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                       <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '9px', textTransform: 'uppercase', textAlign: 'center' }}>
@@ -2950,23 +2985,36 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
 
             {settingsTab === 'sandbox' && isSandboxRules && (
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', opacity: zeroGravity ? 0.4 : 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px' }}>Gravity Level</span>
-                    <span style={{ color: 'white', fontSize: '10px' }}>{uiState.level}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', opacity: zeroGravity ? 0.4 : 1 }}>
+                  <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Gravity</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px' }}>
+                    {GRAVITY_TIERS.map((tier, idx) => (
+                      <button
+                        key={tier.name}
+                        onClick={() => {
+                          setSandboxTierIdx(idx);
+                          levelRef.current = tier.level;
+                          if (zeroGravity) { setZeroGravity(false); zeroGravityRef.current = false; }
+                          dropInterval.current = calculateDropInterval(tier.level);
+                          syncUi();
+                        }}
+                        style={{
+                          padding: '6px 2px', borderRadius: '4px', cursor: 'pointer',
+                          fontSize: '10px', fontWeight: idx === sandboxTierIdx && !zeroGravity ? 700 : 400,
+                          textTransform: 'uppercase', letterSpacing: '0.05em',
+                          backgroundColor: idx === sandboxTierIdx && !zeroGravity
+                            ? 'color-mix(in srgb, var(--tt-accent) 25%, transparent)'
+                            : 'rgba(255,255,255,0.07)',
+                          color: idx === sandboxTierIdx && !zeroGravity ? 'var(--tt-accent)' : 'rgba(255,255,255,0.7)',
+                          border: idx === sandboxTierIdx && !zeroGravity
+                            ? '1px solid var(--tt-accent)'
+                            : '1px solid rgba(255,255,255,0.12)',
+                        }}
+                      >
+                        {tier.name}
+                      </button>
+                    ))}
                   </div>
-                  <input
-                    type="range" min="1" max="20" step="1"
-                    value={uiState.level}
-                    onChange={(e) => {
-                      const level = Number(e.target.value);
-                      levelRef.current = level;
-                      if (zeroGravity) { setZeroGravity(false); zeroGravityRef.current = false; }
-                      dropInterval.current = calculateDropInterval(level);
-                      syncUi();
-                    }}
-                    style={{ width: '100%', accentColor: 'var(--tt-accent)', height: '4px' }}
-                  />
                 </div>
 
                 <button
@@ -2978,7 +3026,7 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
                     borderRadius: '4px', padding: '8px', cursor: 'pointer', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em',
                   }}
                 >
-                  {zeroGravity ? 'Zero-G Enabled — Tap to Disable' : 'Enable Zero-G (No Gravity)'}
+                  {zeroGravity ? 'Zero-G On — Tap to Disable' : 'Enable Zero-G (No Gravity)'}
                 </button>
 
                 <div style={{ display: 'flex', gap: '6px' }}>
@@ -2996,48 +3044,52 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
                   </button>
                 </div>
 
-                <button
-                  onClick={clearSandboxBoard}
-                  style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', padding: '8px', cursor: 'pointer', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em' }}
-                >
-                  Clear Board
-                </button>
+                {!limitedSandbox && (
+                  <button
+                    onClick={clearSandboxBoard}
+                    style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', padding: '8px', cursor: 'pointer', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em' }}
+                  >
+                    Clear Board
+                  </button>
+                )}
 
-                <div>
-                  <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', display: 'block', marginBottom: '8px' }}>Spawn Piece</span>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
-                    {SPAWN_HOTKEY_ACTIONS.map(({ type, action }) => (
-                      <div key={type} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                        <button
-                          onClick={() => {
-                            spawnSandboxPiece(type);
-                            showControlsRef.current = false;
-                            setShowControls(false);
-                            isPausedRef.current = false;
-                            setIsPaused(false);
-                          }}
-                          style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', padding: '6px', cursor: 'pointer', width: '100%', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        >
-                          <MiniPiece type={type} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setListeningAction(action);
-                            listeningActionRef.current = action;
-                          }}
-                          style={{ backgroundColor: listeningAction === action ? 'var(--tt-accent)' : 'rgba(255,255,255,0.1)', color: 'white', border: 'none', borderRadius: '4px', padding: '4px', fontSize: '10px', cursor: 'pointer', width: '100%', textAlign: 'center', height: '22px' }}
-                        >
-                          {listeningAction === action ? '...' : (controls[action] === ' ' ? 'Space' : controls[action].replace('Arrow', ''))}
-                        </button>
-                      </div>
-                    ))}
+                {!limitedSandbox && (
+                  <div>
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', display: 'block', marginBottom: '8px' }}>Spawn Piece</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+                      {SPAWN_HOTKEY_ACTIONS.map(({ type, action }) => (
+                        <div key={type} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                          <button
+                            onClick={() => {
+                              spawnSandboxPiece(type);
+                              showControlsRef.current = false;
+                              setShowControls(false);
+                              isPausedRef.current = false;
+                              setIsPaused(false);
+                            }}
+                            style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', padding: '6px', cursor: 'pointer', width: '100%', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <MiniPiece type={type} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setListeningAction(action);
+                              listeningActionRef.current = action;
+                            }}
+                            style={{ backgroundColor: listeningAction === action ? 'var(--tt-accent)' : 'rgba(255,255,255,0.1)', color: 'white', border: 'none', borderRadius: '4px', padding: '4px', fontSize: '10px', cursor: 'pointer', width: '100%', textAlign: 'center', height: '22px' }}
+                          >
+                            {listeningAction === action ? '...' : (controls[action] === ' ' ? 'Space' : controls[action].replace('Arrow', ''))}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.85rem' }}>
                   <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', display: 'block' }}>Hotkeys</span>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-                    {SANDBOX_GENERAL_HOTKEY_ACTIONS.map((action) => (
+                    {(limitedSandbox ? SANDBOX_GENERAL_HOTKEY_ACTIONS.filter(a => a !== 'Clear Board') : SANDBOX_GENERAL_HOTKEY_ACTIONS).map((action) => (
                       <div key={action} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                         <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '9px', textTransform: 'uppercase', textAlign: 'center' }}>
                           {action}
@@ -3178,14 +3230,10 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
               </div>
             </>
           ) : mode === 'coop' ? (
-            // Team-shared stats — score/level/lines are adopted from
+            // Team-shared stats — level/lines are adopted from
             // whichever client's broadcast arrives most recently (see the
             // isCoop adopt effect), so both players' HUDs read the same.
             <>
-              <div>
-                <p style={{ fontSize: isMobile ? '7px' : '10px', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.25rem', margin: 0 }}>Score</p>
-                <p style={{ fontSize: isMobile ? '0.9rem' : '1.25rem', color: 'var(--tt-accent)', fontWeight: 'bold', textShadow: '0 0 8px color-mix(in srgb, var(--tt-accent) 50%, transparent)', margin: 0 }}>{uiState.score}</p>
-              </div>
               <div>
                 <p style={{ fontSize: isMobile ? '7px' : '10px', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.25rem', margin: 0 }}>Time</p>
                 <p ref={timeDisplayRef} style={{ fontSize: isMobile ? '0.8rem' : '1.125rem', color: 'rgba(255,255,255,0.95)', fontWeight: 'bold', margin: 0, fontVariantNumeric: 'tabular-nums' }}>
@@ -3204,8 +3252,8 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
           ) : mode === 'blitz' ? (
             <>
               <div>
-                <p style={{ fontSize: isMobile ? '7px' : '10px', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.25rem', margin: 0 }}>Score</p>
-                <p style={{ fontSize: isMobile ? '0.9rem' : '1.25rem', color: 'var(--tt-accent)', fontWeight: 'bold', textShadow: '0 0 8px color-mix(in srgb, var(--tt-accent) 50%, transparent)', margin: 0 }}>{uiState.score}</p>
+                <p style={{ fontSize: isMobile ? '7px' : '10px', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.25rem', margin: 0 }}>Combo</p>
+                <p style={{ fontSize: isMobile ? '0.9rem' : '1.25rem', color: 'var(--tt-accent)', fontWeight: 'bold', textShadow: '0 0 8px color-mix(in srgb, var(--tt-accent) 50%, transparent)', margin: 0 }}>{Math.max(0, uiState.combo)}</p>
               </div>
               <div>
                 <p style={{ fontSize: isMobile ? '7px' : '10px', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.25rem', margin: 0 }}>Time Left</p>
@@ -3227,15 +3275,8 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
               </div>
             </>
           ) : (
-            // Sandbox mode: score is back (good for testing combos/B2B/the
-            // point system) but there's still no leaderboard for it — plus a
-            // practice stopwatch (resets whenever the board clears, see
-            // handleGameOver), the gravity level, and a lines-cleared tally.
+            // Sandbox mode: timer + gravity tier name only.
             <>
-              <div>
-                <p style={{ fontSize: isMobile ? '7px' : '10px', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.25rem', margin: 0 }}>Score</p>
-                <p style={{ fontSize: isMobile ? '0.9rem' : '1.25rem', color: 'var(--tt-accent)', fontWeight: 'bold', textShadow: '0 0 8px color-mix(in srgb, var(--tt-accent) 50%, transparent)', margin: 0 }}>{uiState.score}</p>
-              </div>
               <div>
                 <p style={{ fontSize: isMobile ? '7px' : '10px', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.25rem', margin: 0 }}>Time</p>
                 <p ref={timeDisplayRef} style={{ fontSize: isMobile ? '0.8rem' : '1.125rem', color: 'rgba(255,255,255,0.95)', fontWeight: 'bold', margin: 0, fontVariantNumeric: 'tabular-nums' }}>
@@ -3244,11 +3285,9 @@ export default function TetrisGame({ mode, onMenu, onAttack, incomingGarbage, on
               </div>
               <div>
                 <p style={{ fontSize: isMobile ? '7px' : '10px', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.25rem', margin: 0 }}>Gravity</p>
-                <p style={{ fontSize: isMobile ? '0.8rem' : '1.125rem', color: 'rgba(255,255,255,0.95)', fontWeight: 'bold', margin: 0 }}>{zeroGravity ? 'Zero-G' : `Lv ${uiState.level}`}</p>
-              </div>
-              <div>
-                <p style={{ fontSize: isMobile ? '7px' : '10px', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.25rem', margin: 0 }}>Lines</p>
-                <p style={{ fontSize: isMobile ? '0.8rem' : '1.125rem', color: 'rgba(255,255,255,0.95)', fontWeight: 'bold', margin: 0 }}>{uiState.lines}</p>
+                <p style={{ fontSize: isMobile ? '0.8rem' : '1.125rem', color: 'rgba(255,255,255,0.95)', fontWeight: 'bold', margin: 0 }}>
+                  {zeroGravity ? 'Zero-G' : GRAVITY_TIERS[sandboxTierIdx].name}
+                </p>
               </div>
             </>
           )}

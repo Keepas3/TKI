@@ -3,10 +3,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePosts, TOPICS, type StudyPost } from './useStudy';
-import { StudyIcon, topicColor, topicLabel, timeAgo } from './studyUtils';
+import { topicColor, topicLabel, timeAgo } from './studyUtils';
 
 // ---------------------------------------------------------------------------
-// Topic grid (exported so page.tsx can place it before the puzzle card)
+// Topic grid
 // ---------------------------------------------------------------------------
 
 export function HomeTopicGrid() {
@@ -20,18 +20,23 @@ export function HomeTopicGrid() {
             display: 'flex', flexDirection: 'column', gap: '0.3rem',
             padding: '0.9rem 1.1rem', textDecoration: 'none',
             background: `color-mix(in srgb, ${t.color} 10%, transparent)`,
+            border: '1px solid var(--tt-border)',
             borderLeft: `3px solid ${t.color}`,
             borderRadius: '6px',
-            transition: 'background 0.12s',
+            transition: 'background 0.12s, border-color 0.12s',
           }}
-          onMouseOver={(e) => { e.currentTarget.style.background = `color-mix(in srgb, ${t.color} 18%, transparent)`; }}
-          onMouseOut={(e) => { e.currentTarget.style.background = `color-mix(in srgb, ${t.color} 10%, transparent)`; }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.background = `color-mix(in srgb, ${t.color} 18%, transparent)`;
+            e.currentTarget.style.borderColor = 'var(--tt-border-strong)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.background = `color-mix(in srgb, ${t.color} 10%, transparent)`;
+            e.currentTarget.style.borderColor = 'var(--tt-border)';
+          }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <StudyIcon topic={t.id} size={20} />
-            <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#fff' }}>{t.label}</span>
-          </div>
-          <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: 'rgba(255,255,255,0.4)' }}>Browse →</span>
+          <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--tt-text)' }}>{t.label}</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--tt-text-faint)', lineHeight: 1.45 }}>{t.desc}</span>
+          <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: 'var(--tt-text-faint)', marginTop: '0.2rem' }}>Browse →</span>
         </Link>
       ))}
     </div>
@@ -49,32 +54,31 @@ function HomeFeaturedStudy({ post }: { post: StudyPost }) {
       href={`/study/${post.id}`}
       style={{
         display: 'flex', gap: '2rem', textDecoration: 'none', color: 'inherit',
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.09)',
+        backgroundColor: 'var(--tt-surface)',
+        border: '1px solid var(--tt-border)',
         borderRadius: '8px', padding: '1.25rem 1.4rem',
         transition: 'background-color 0.12s, border-color 0.12s',
         marginTop: '2.5rem',
       }}
       onMouseOver={(e) => {
-        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.055)';
-        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.14)';
+        e.currentTarget.style.backgroundColor = 'var(--tt-surface-hover)';
+        e.currentTarget.style.borderColor = 'var(--tt-border-strong)';
       }}
       onMouseOut={(e) => {
-        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)';
-        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)';
+        e.currentTarget.style.backgroundColor = 'var(--tt-surface)';
+        e.currentTarget.style.borderColor = 'var(--tt-border)';
       }}
     >
-      {/* Left: metadata */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: '0.65rem', fontFamily: 'monospace', letterSpacing: '0.1em', color: 'var(--tt-accent)', marginBottom: '0.4rem' }}>
           FEATURED
         </div>
-        <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.3rem', fontWeight: 'bold', color: '#fff', lineHeight: 1.25 }}>
+        <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--tt-text)', lineHeight: 1.25 }}>
           {post.title}
         </h2>
         {post.summary && (
           <p style={{
-            margin: '0 0 0.75rem', fontSize: '0.83rem', color: 'rgba(255,255,255,0.5)',
+            margin: '0 0 0.75rem', fontSize: '0.83rem', color: 'var(--tt-text-muted)',
             lineHeight: 1.55, overflow: 'hidden', display: '-webkit-box',
             WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
           }}>
@@ -89,27 +93,26 @@ function HomeFeaturedStudy({ post }: { post: StudyPost }) {
           }}>
             {topicLabel(post.topic)}
           </span>
-          <span style={{ color: 'rgba(255,255,255,0.35)' }}>
+          <span style={{ color: 'var(--tt-text-faint)' }}>
             {post.author_username ?? 'Anon'} · {timeAgo(post.created_at)}
           </span>
         </div>
       </div>
 
-      {/* Right: chapter list */}
       {post.chapters.length > 0 && (
         <div style={{ minWidth: 190, flexShrink: 0 }}>
-          <div style={{ fontSize: '0.65rem', fontFamily: 'monospace', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.3)', marginBottom: '0.5rem' }}>
+          <div style={{ fontSize: '0.65rem', fontFamily: 'monospace', letterSpacing: '0.08em', color: 'var(--tt-text-faint)', marginBottom: '0.5rem' }}>
             CHAPTERS
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             {post.chapters.slice(0, 4).map((ch, i) => (
-              <div key={i} style={{ display: 'flex', gap: '0.4rem', fontSize: '0.78rem', fontFamily: 'monospace', color: 'rgba(255,255,255,0.45)' }}>
+              <div key={i} style={{ display: 'flex', gap: '0.4rem', fontSize: '0.78rem', fontFamily: 'monospace', color: 'var(--tt-text-muted)' }}>
                 <span style={{ opacity: 0.5 }}>○</span>
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch}</span>
               </div>
             ))}
             {post.chapters.length > 4 && (
-              <div style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: 'rgba(255,255,255,0.25)', marginTop: '0.1rem' }}>
+              <div style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: 'var(--tt-text-dim)', marginTop: '0.1rem' }}>
                 +{post.chapters.length - 4} more
               </div>
             )}
@@ -131,29 +134,29 @@ function RecentCard({ post }: { post: StudyPost }) {
       href={`/study/${post.id}`}
       style={{
         display: 'block', textDecoration: 'none', color: 'inherit',
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.08)',
+        backgroundColor: 'var(--tt-surface)',
+        border: '1px solid var(--tt-border)',
         borderRadius: '7px', padding: '0.85rem 1rem',
         transition: 'background-color 0.12s, border-color 0.12s',
       }}
       onMouseOver={(e) => {
-        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.055)';
-        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.14)';
+        e.currentTarget.style.backgroundColor = 'var(--tt-surface-hover)';
+        e.currentTarget.style.borderColor = 'var(--tt-border-strong)';
       }}
       onMouseOut={(e) => {
-        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)';
-        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+        e.currentTarget.style.backgroundColor = 'var(--tt-surface)';
+        e.currentTarget.style.borderColor = 'var(--tt-border)';
       }}
     >
       <div style={{ fontWeight: 'bold', fontSize: '0.88rem', color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.3rem' }}>
         {post.title}
       </div>
       {post.chapters[0] && (
-        <div style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: 'rgba(255,255,255,0.35)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.35rem' }}>
+        <div style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: 'var(--tt-text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.35rem' }}>
           ○ {post.chapters[0]}
         </div>
       )}
-      <div style={{ fontSize: '0.68rem', fontFamily: 'monospace', color: 'rgba(255,255,255,0.3)' }}>
+      <div style={{ fontSize: '0.68rem', fontFamily: 'monospace', color: 'var(--tt-text-faint)' }}>
         {post.author_username ?? 'Anon'} · {timeAgo(post.created_at)}
       </div>
     </Link>
@@ -164,10 +167,10 @@ function HomeRecentList({ posts }: { posts: StudyPost[] }) {
   return (
     <div style={{ marginTop: '1.75rem' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-        <h2 style={{ margin: 0, fontSize: '0.85rem', fontFamily: 'monospace', fontWeight: 'bold', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.06em' }}>
+        <h2 style={{ margin: 0, fontSize: '0.85rem', fontFamily: 'monospace', fontWeight: 'bold', color: 'var(--tt-text-muted)', letterSpacing: '0.06em' }}>
           Recent Studies
         </h2>
-        <Link href="/study" style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', textDecoration: 'none', fontFamily: 'monospace' }}>
+        <Link href="/study" style={{ fontSize: '0.75rem', color: 'var(--tt-text-faint)', textDecoration: 'none', fontFamily: 'monospace' }}>
           View all →
         </Link>
       </div>
@@ -182,14 +185,11 @@ function HomeRecentList({ posts }: { posts: StudyPost[] }) {
 // Skeletons
 // ---------------------------------------------------------------------------
 
-function SkeletonTile() {
-  return <div style={{ height: 72, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.05)' }} />;
-}
 function SkeletonFeatured() {
-  return <div style={{ height: 140, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.04)', marginTop: '2.5rem' }} />;
+  return <div style={{ height: 140, borderRadius: 8, backgroundColor: 'var(--tt-surface)', marginTop: '2.5rem' }} />;
 }
 function SkeletonSmall() {
-  return <div style={{ height: 80, borderRadius: 7, backgroundColor: 'rgba(255,255,255,0.04)' }} />;
+  return <div style={{ height: 80, borderRadius: 7, backgroundColor: 'var(--tt-surface)' }} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -204,7 +204,7 @@ export default function HomeStudySection() {
   return (
     <div>
       {error && (
-        <p style={{ margin: '2rem 0 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
+        <p style={{ margin: '2rem 0 0', fontSize: '0.8rem', color: 'var(--tt-text-faint)', fontFamily: 'monospace' }}>
           Couldn&apos;t load studies.
         </p>
       )}

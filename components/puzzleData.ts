@@ -3,6 +3,13 @@
 // a Perfect Clear when the board is completely empty after clearing all lines.
 // All boards are 20 rows × 10 cols; only rows with non-zero cells are listed
 // in comments — everything above is empty (all zeros).
+//
+// Daily puzzle resolution order:
+//   1. daily_schedule table in Supabase (admin-curated, per calendar date)
+//   2. Approved puzzle_submissions row (for community-submitted dailies)
+//   3. Hardcoded date-index rotation over PUZZLES (fallback when nothing scheduled)
+
+import { supabase } from '../app/utils/supabaseClient';
 
 export type PuzzleCategory = 'opening' | 'middlegame' | 'finisher' | 'survival';
 export type PuzzleDifficulty = 'easy' | 'medium' | 'hard';
@@ -76,95 +83,90 @@ export const PUZZLES: Puzzle[] = [
     board: makeBoard(),  // empty board,
     queue: [7, 2, 1, 3, 4, 5, 6, 3, 2, 1],   // L, O, I, T, S, Z, J, T, O, I
   },
-     {
+   {
     id: 'new-puzzle',
     name: 'New Puzzle',
     category: 'finisher',
     difficulty: 'easy',
     description: 'Description here.',
-    board: makeBoard(),  // empty board,
-    queue: [4, 7, 2, 6, 1, 3, 5, 2, 7, 1],   // S, L, O, J, I, T, Z, O, L, I
+    board: makeBoard(
+    [_,_,_,_,_,X,X,X,X,X],
+    [_,_,_,_,_,X,X,X,X,X],
+    [_,_,X,X,X,X,X,X,X,X],
+    [_,X,X,X,X,X,X,X,X,X],
+    [_,X,X,X,X,X,X,X,X,X],
+  ),
+    queue: [6, 6, 2, 5, 3, 1, 7, 4, 1, 3, 4],   // J, J, O, Z, T, I, L, S, I, T, S
   },
 
   // ── MEDIUM ────────────────────────────────────────────────────────────────
-  {
-    id: 'm1-two-step',
-    name: 'Two-Step',
+   {
+    id: 'fontaine',
+    name: 'Fontaine',
     category: 'opening',
     difficulty: 'medium',
-    description: 'J and L interlock to fill two rows. Send J to the far left.',
-    board: makeBoard(
-      [_,X,X,X,X,_,X,X,X,X],   // row 18: col 0 empty (J top), col 5 empty (L top)
-      [_,_,_,_,_,_,X,X,X,X],   // row 19: cols 0-5 empty (J+L bottoms)
-    ),
-    queue: [6, 7],   // J then L
+    description: 'Founded Fonta Fontaine',
+    board: makeBoard(  // 1=I 2=O 3=T 4=S 5=Z 6=J 7=L
+    [_,_,_,5,5,_,_,_,_,_],
+    [1,3,5,5,5,5,_,2,2,6],
+    [1,3,4,4,_,2,2,7,7,7],
+  ),
+    queue: [4, 7, 6, 3, 5, 4, 3, 2, 6, 1],   // S, L, J, T, Z, S, T, O, J, I
   },
-  {
-    id: 'm2-zigzag',
-    name: 'Zigzag',
+    {
+    id: 'perfect-clear-in-midgame',
+    name: 'Perfect Clear in Midgame',
     category: 'opening',
     difficulty: 'medium',
-    description: 'S and Z interlock in a classic zigzag. S goes left, Z shifts one right.',
-    board: makeBoard(
-      [X,_,_,_,_,X,X,X,X,X],   // row 17: col 0 filled; cols 1-4 empty (S+Z tops)
-      [_,_,X,X,_,_,X,X,X,X],   // row 18: cols 0-1 empty (S), cols 4-5 empty (Z)
-    ),
-    queue: [4, 5],   // S then Z
+    description: 'Start by clearing the two rows then 1.',
+    board: makeBoard(  // 1=I 2=O 3=T 4=S 5=Z 6=J 7=L
+    [_,_,_,_,_,7,7,7,2,2],
+    [_,_,_,_,_,7,4,4,2,2],
+    [_,_,5,2,2,4,4,4,7,7],
+    [_,5,5,2,2,5,5,4,4,7],
+    [_,5,1,1,1,1,5,5,4,7],
+  ),
+    queue: [6, 6, 2, 5, 3, 7, 4, 1, 1, 3, 4],   // J, J, O, Z, T, L, S, I, I, T, S
   },
   {
-    id: 'm3-tower',
-    name: 'Tower',
-    category: 'middlegame',
-    difficulty: 'medium',
-    description: 'T plugs the notch; rotate I vertically and send it to the right wall.',
-    board: makeBoard(
-      [X,X,X,X,X,X,X,X,X,_],   // row 16: col 9 empty
-      [X,X,X,X,_,X,X,X,X,_],   // row 17: col 4 empty (T top), col 9 empty
-      [X,X,X,_,_,_,X,X,X,_],   // row 18: cols 3-5 empty (T bottom), col 9 empty
-      [X,X,X,X,X,X,X,X,X,_],   // row 19: col 9 empty
-    ),
-    queue: [3, 1],   // T then I (I goes vertical, x=7 fills col 9)
-  },
-  {
-    id: 'm4-s-and-l',
-    name: 'S and L',
+    id: 'medium-is-premium',
+    name: 'Medium is Premium',
     category: 'opening',
     difficulty: 'medium',
-    description: 'S fills the left gap, L drops right in place. Two pieces, two rows.',
-    board: makeBoard(
-      [X,_,_,X,X,X,_,X,X,X],   // row 18: cols 1-2 empty (S top), col 6 empty (L top)
-      [_,_,X,X,_,_,_,X,X,X],   // row 19: cols 0-1 empty (S bottom), cols 4-6 empty (L bottom)
-    ),
-    queue: [4, 7],   // S then L
+    description: 'Try to set up a T-spin double in center',
+    board: makeBoard(  // 1=I 2=O 3=T 4=S 5=Z 6=J 7=L
+    [_,5,_,_,_,_,_,_,_,_],
+    [5,5,4,4,_,_,_,_,_,_],
+    [5,4,4,_,_,_,_,_,_,_],
+  ),
+    queue: [3, 7, 6, 1, 2, 4, 3, 5],   // T, L, J, I, O, S, T, Z
   },
+  
 
   // ── HARD ──────────────────────────────────────────────────────────────────
-  {
-    id: 'h1-triple-threat',
-    name: 'Triple Threat',
-    category: 'middlegame',
+    {
+    id: 'tricky',
+    name: 'Tricky',
+    category: 'opening',
     difficulty: 'hard',
-    description: 'S and Z weave through the middle while I seals the right column.',
-    board: makeBoard(
-      [X,X,X,X,X,X,X,X,X,_],   // row 16: col 9 empty
-      [X,_,_,_,_,X,X,X,X,_],   // row 17: cols 1-4 empty (S+Z tops), col 9 empty
-      [_,_,X,X,_,_,X,X,X,_],   // row 18: cols 0-1 empty (S bot), cols 4-5 empty (Z bot), col 9 empty
-      [X,X,X,X,X,X,X,X,X,_],   // row 19: col 9 empty
-    ),
-    queue: [4, 5, 1],   // S, Z, then I (I vertical at x=7 fills col 9)
+    description: 'TSD and you will be on the right track',
+    board: makeBoard(  // 1=I 2=O 3=T 4=S 5=Z 6=J 7=L
+    [_,2,2,_,4,4,_,_,_,_],
+    [_,2,2,4,4,_,_,_,_,_],
+  ),
+    queue: [1, 7, 2, 5, 6, 3, 2, 4, 7, 3, 5, 1, 6],   // I, L, O, Z, J, T, O, S, L, T, Z, I, J
   },
-  {
-    id: 'h2-trio-drop',
-    name: 'Trio Drop',
-    category: 'finisher',
+   {
+    id: 'very-difficult-',
+    name: 'Very Difficult ',
+    category: 'opening',
     difficulty: 'hard',
-    description: 'Three pieces, three rows. J left, L center, O upper-right.',
-    board: makeBoard(
-      [X,X,X,X,X,X,_,_,X,X],   // row 16: cols 6-7 empty (O top)
-      [_,X,X,X,X,_,_,_,X,X],   // row 17: col 0 empty (J), col 5 empty (L), cols 6-7 empty (O bot)
-      [_,_,_,_,_,_,X,X,X,X],   // row 18: cols 0-5 empty (J+L bottoms)
-    ),
-    queue: [6, 7, 2],   // J, L, O
+    description: 'Good luck',
+    board: makeBoard(  // 1=I 2=O 3=T 4=S 5=Z 6=J 7=L
+    [2,2,_,_,3,3,3,_,_,_],
+    [2,2,_,_,_,3,_,_,_,_],
+  ),
+    queue: [5, 7, 1, 4, 6, 3, 5, 4, 6, 2, 1, 7, 3],   // Z, L, I, S, J, T, Z, S, J, O, I, L, T
   },
 ];
 
@@ -174,6 +176,12 @@ export const PUZZLES: Puzzle[] = [
 
 export function getPuzzleById(id: string): Puzzle | undefined {
   return PUZZLES.find((p) => p.id === id);
+}
+
+// Server-safe: date-based rotation only. Safe to call during SSR and in useState().
+export function getDailyPuzzleByDate(): Puzzle {
+  const dayIndex = Math.floor(Date.now() / 86_400_000);
+  return PUZZLES[dayIndex % PUZZLES.length];
 }
 
 export function getDailyPuzzle(): Puzzle {
@@ -186,8 +194,7 @@ export function getDailyPuzzle(): Puzzle {
       if (found) return found;
     }
   }
-  const dayIndex = Math.floor(Date.now() / 86_400_000);
-  return PUZZLES[dayIndex % PUZZLES.length];
+  return getDailyPuzzleByDate();
 }
 
 export function setDailyPuzzle(id: string | null): void {
@@ -196,8 +203,118 @@ export function setDailyPuzzle(id: string | null): void {
   else localStorage.setItem('puzzle-daily-id', id);
 }
 
+function submissionToPuzzle(sub: Record<string, unknown>): Puzzle {
+  return {
+    id: sub.id as string,
+    name: sub.name as string,
+    category: sub.category as PuzzleCategory,
+    difficulty: sub.difficulty as PuzzleDifficulty,
+    description: (sub.description as string) ?? '',
+    board: sub.board as number[][],
+    queue: sub.queue as number[],
+  };
+}
+
+// Async lookup: checks built-in PUZZLES first, then puzzle_submissions.
+export async function fetchPuzzleById(id: string): Promise<Puzzle | undefined> {
+  const builtin = PUZZLES.find((p) => p.id === id);
+  if (builtin) return builtin;
+  try {
+    const { data } = await supabase.from('puzzle_submissions').select('*').eq('id', id).single();
+    if (data) return submissionToPuzzle(data);
+  } catch { /* not found */ }
+  return undefined;
+}
+
+// Async daily puzzle: checks daily_schedule → puzzle_submissions → sync fallback.
+export async function fetchDailyPuzzle(): Promise<Puzzle> {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: row } = await supabase
+      .from('daily_schedule')
+      .select('puzzle_id')
+      .eq('date', today)
+      .single();
+    if (row?.puzzle_id) {
+      const found = await fetchPuzzleById(row.puzzle_id);
+      if (found) return found;
+    }
+  } catch { /* fall through */ }
+  return getDailyPuzzle();
+}
+
 export function getPuzzlesByDifficulty(d: PuzzleDifficulty): Puzzle[] {
   return PUZZLES.filter((p) => p.difficulty === d);
+}
+
+// ---------------------------------------------------------------------------
+// Community puzzles (puzzle_submissions with status approved/featured)
+// ---------------------------------------------------------------------------
+
+export interface CommunityPuzzle extends Puzzle {
+  submissionId: string;
+  authorUsername: string | null;
+  voteCount: number;
+  createdAt: string;
+  featured: boolean;
+}
+
+export async function fetchCommunityPuzzles(): Promise<CommunityPuzzle[]> {
+  try {
+    const [puzzlesRes, votesRes] = await Promise.all([
+      supabase
+        .from('puzzle_submissions')
+        .select('*')
+        .in('status', ['approved', 'featured'])
+        .order('created_at', { ascending: false }),
+      supabase.from('puzzle_votes').select('puzzle_id'),
+    ]);
+    const rows = puzzlesRes.data ?? [];
+    const votes = votesRes.data ?? [];
+    const voteMap = new Map<string, number>();
+    for (const v of votes) voteMap.set(v.puzzle_id, (voteMap.get(v.puzzle_id) ?? 0) + 1);
+    return rows.map(r => ({
+      id: r.id,
+      submissionId: r.id,
+      name: r.name,
+      category: r.category as PuzzleCategory,
+      difficulty: r.difficulty as PuzzleDifficulty,
+      description: r.description ?? '',
+      board: r.board as number[][],
+      queue: r.queue as number[],
+      authorUsername: r.author_username ?? null,
+      voteCount: voteMap.get(r.id) ?? 0,
+      createdAt: r.created_at,
+      featured: r.status === 'featured',
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchMyVotes(fingerprint: string): Promise<Set<string>> {
+  if (!fingerprint) return new Set();
+  const { data } = await supabase
+    .from('puzzle_votes')
+    .select('puzzle_id')
+    .eq('voter_fingerprint', fingerprint);
+  return new Set((data ?? []).map(v => v.puzzle_id));
+}
+
+export async function voteForPuzzle(puzzleId: string, fingerprint: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('puzzle_votes')
+    .insert({ puzzle_id: puzzleId, voter_fingerprint: fingerprint });
+  return !error;
+}
+
+export async function unvoteForPuzzle(puzzleId: string, fingerprint: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('puzzle_votes')
+    .delete()
+    .eq('puzzle_id', puzzleId)
+    .eq('voter_fingerprint', fingerprint);
+  return !error;
 }
 
 export const DIFFICULTY_COLORS: Record<PuzzleDifficulty, string> = {

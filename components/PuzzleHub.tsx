@@ -2,11 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { PUZZLES, getDailyPuzzle, DIFFICULTY_COLORS, CATEGORY_LABELS, PIECE_COLORS, PIECE_NAMES, type Puzzle, type PuzzleDifficulty } from './puzzleData';
-
-// ---------------------------------------------------------------------------
-// Solved state — persisted to localStorage
-// ---------------------------------------------------------------------------
+import { PUZZLES, getDailyPuzzleByDate, fetchDailyPuzzle, DIFFICULTY_COLORS, CATEGORY_LABELS, PIECE_COLORS, PIECE_NAMES, type Puzzle, type PuzzleDifficulty } from './puzzleData';
 
 function getSolvedSet(): Set<string> {
   if (typeof window === 'undefined') return new Set();
@@ -17,10 +13,6 @@ function getSolvedSet(): Set<string> {
     return new Set();
   }
 }
-
-// ---------------------------------------------------------------------------
-// Board preview (miniature)
-// ---------------------------------------------------------------------------
 
 function BoardPreview({ board }: { board: number[][] }) {
   const CELL = 4;
@@ -40,7 +32,7 @@ function BoardPreview({ board }: { board: number[][] }) {
               y={PAD + r * CELL}
               width={CELL - 1}
               height={CELL - 1}
-              fill="#0ea5e9"
+              fill={PIECE_COLORS[cell] ?? '#0ea5e9'}
               rx={0.5}
             />
           ) : null
@@ -49,11 +41,6 @@ function BoardPreview({ board }: { board: number[][] }) {
     </svg>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Piece badge
-// ---------------------------------------------------------------------------
-
 
 function PieceBadge({ type }: { type: number }) {
   return (
@@ -68,10 +55,6 @@ function PieceBadge({ type }: { type: number }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Puzzle card
-// ---------------------------------------------------------------------------
-
 function PuzzleCard({ puzzle, solved, isDaily }: { puzzle: Puzzle; solved: boolean; isDaily?: boolean }) {
   const diffColor = DIFFICULTY_COLORS[puzzle.difficulty];
   return (
@@ -79,17 +62,25 @@ function PuzzleCard({ puzzle, solved, isDaily }: { puzzle: Puzzle; solved: boole
       href={`/puzzle/${puzzle.id}`}
       style={{
         display: 'flex', alignItems: 'stretch', gap: 12,
-        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)',
+        background: 'var(--tt-surface)', border: '1px solid var(--tt-border)',
         borderRadius: 8, padding: '10px 14px', textDecoration: 'none',
         transition: 'background 0.15s, border-color 0.15s',
         position: 'relative',
+      }}
+      onMouseOver={(e) => {
+        e.currentTarget.style.background = 'var(--tt-surface-hover)';
+        e.currentTarget.style.borderColor = 'var(--tt-border-strong)';
+      }}
+      onMouseOut={(e) => {
+        e.currentTarget.style.background = 'var(--tt-surface)';
+        e.currentTarget.style.borderColor = 'var(--tt-border)';
       }}
     >
       <BoardPreview board={puzzle.board} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ color: '#fff', fontFamily: 'monospace', fontSize: 13, fontWeight: 600 }}>
+          <span style={{ color: 'var(--tt-text)', fontFamily: 'monospace', fontSize: 13, fontWeight: 600 }}>
             {puzzle.name}
           </span>
           {isDaily && (
@@ -102,11 +93,11 @@ function PuzzleCard({ puzzle, solved, isDaily }: { puzzle: Puzzle; solved: boole
             </span>
           )}
           {solved && (
-            <span style={{ fontSize: 14, lineHeight: 1 }}>✓</span>
+            <span style={{ fontSize: 14, lineHeight: 1, color: '#4ade80' }}>✓</span>
           )}
         </div>
 
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontFamily: 'monospace' }}>
+        <span style={{ fontSize: 11, color: 'var(--tt-text-muted)', fontFamily: 'monospace' }}>
           {puzzle.description}
         </span>
 
@@ -117,7 +108,7 @@ function PuzzleCard({ puzzle, solved, isDaily }: { puzzle: Puzzle; solved: boole
           }}>
             {puzzle.difficulty}
           </span>
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
+          <span style={{ fontSize: 10, color: 'var(--tt-text-faint)', fontFamily: 'monospace' }}>
             {CATEGORY_LABELS[puzzle.category]}
           </span>
           <div style={{ display: 'flex', gap: 3, marginLeft: 'auto' }}>
@@ -129,16 +120,10 @@ function PuzzleCard({ puzzle, solved, isDaily }: { puzzle: Puzzle; solved: boole
   );
 }
 
-// ---------------------------------------------------------------------------
-// Section header
-// ---------------------------------------------------------------------------
-
 function Section({ label, color, children }: { label: string; color: string; children: React.ReactNode }) {
   return (
     <div>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12,
-      }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         <span style={{
           fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
           color, fontFamily: 'monospace', fontWeight: 700,
@@ -154,15 +139,13 @@ function Section({ label, color, children }: { label: string; color: string; chi
   );
 }
 
-// ---------------------------------------------------------------------------
-// Hub page
-// ---------------------------------------------------------------------------
-
 export default function PuzzleHub() {
   const [solvedSet, setSolvedSet] = React.useState<Set<string>>(new Set());
-  React.useEffect(() => { setSolvedSet(getSolvedSet()); }, []);
-
-  const daily = getDailyPuzzle();
+  const [daily, setDaily] = React.useState<Puzzle>(getDailyPuzzleByDate);
+  React.useEffect(() => {
+    setSolvedSet(getSolvedSet());
+    fetchDailyPuzzle().then(setDaily);
+  }, []);
   const groups: Record<PuzzleDifficulty, Puzzle[]> = { easy: [], medium: [], hard: [] };
   for (const p of PUZZLES) groups[p.difficulty].push(p);
 
@@ -171,24 +154,21 @@ export default function PuzzleHub() {
       maxWidth: 560, margin: '0 auto', padding: '40px 24px 60px',
       fontFamily: 'monospace',
     }}>
-      {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, letterSpacing: '0.05em', margin: '0 0 6px' }}>
+        <h1 style={{ color: 'var(--tt-text)', fontSize: 22, fontWeight: 700, letterSpacing: '0.05em', margin: '0 0 6px' }}>
           Puzzles
         </h1>
-        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, margin: 0 }}>
+        <p style={{ color: 'var(--tt-text-muted)', fontSize: 12, margin: 0 }}>
           Perfect Clear training — solve each setup with the exact pieces given.
         </p>
       </div>
 
-      {/* Daily puzzle */}
       <div style={{ marginBottom: 32 }}>
         <Section label="Daily" color="var(--tt-accent)">
           <PuzzleCard puzzle={daily} solved={solvedSet.has(daily.id)} isDaily />
         </Section>
       </div>
 
-      {/* All puzzles by difficulty */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
         <Section label="Easy" color={DIFFICULTY_COLORS.easy}>
           {groups.easy.map(p => (
@@ -207,16 +187,43 @@ export default function PuzzleHub() {
         </Section>
       </div>
 
-      {/* Editor link */}
-      <div style={{ marginTop: 40, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <Link href="/puzzle/editor" style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          color: 'rgba(255,255,255,0.3)', fontSize: 11, textDecoration: 'none',
-          letterSpacing: '0.06em',
-        }}>
-          <span style={{ fontSize: 14 }}>✎</span>
-          Create a puzzle from a position
-        </Link>
+      {/* Community section */}
+      <div style={{ marginTop: 40, paddingTop: 24, borderTop: '1px solid var(--tt-border)' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
+          <span style={{
+            fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
+            color: 'var(--tt-text-muted)', fontFamily: 'monospace', fontWeight: 700,
+          }}>
+            Community
+          </span>
+          <div style={{ flex: 1, height: 1, background: 'var(--tt-border)' }} />
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--tt-text-muted)', margin: '0 0 14px', fontFamily: 'monospace', lineHeight: 1.6 }}>
+          Player-submitted PC puzzles. Browse, vote, and share your own.
+        </p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Link href="/puzzle/community" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '6px 16px', borderRadius: 20,
+            border: '1px solid var(--tt-border)',
+            color: 'var(--tt-text)', fontFamily: 'monospace', fontSize: 11, fontWeight: 700,
+            textDecoration: 'none', letterSpacing: '0.04em',
+            transition: 'border-color 0.12s, color 0.12s',
+          }}
+            onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--tt-accent)'; e.currentTarget.style.color = 'var(--tt-accent)'; }}
+            onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--tt-border)'; e.currentTarget.style.color = 'var(--tt-text)'; }}
+          >
+            Browse Community →
+          </Link>
+          <Link href="/puzzle/editor" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            color: 'var(--tt-text-faint)', fontSize: 11, textDecoration: 'none',
+            fontFamily: 'monospace', letterSpacing: '0.04em',
+          }}>
+            <span style={{ fontSize: 13 }}>✎</span>
+            Create a puzzle
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -5,16 +5,43 @@
 }
 
 :root {
-  /* Default accent theme (Ice Cyan) — overridden client-side by
-     useColorTheme.ts once it reads the visitor's saved preference. These
-     defaults matter beyond "just a fallback": they're what server-rendered
-     and first-paint markup use, so they must match useColorTheme's own
-     default or the swap-in reads as a flash instead of a hydration match. */
-  --tt-bg: #05090f;
-  --tt-bg-elevated: #0a121b;
+  --tt-bg: #0a0a0a;
+  --tt-bg-elevated: #111111;
   --tt-accent: #4fd1ff;
   --tt-accent-secondary: #ff2e63;
-  --tt-text: #e6f6fb;
+  --tt-text: #f0f0ef;
+
+  --tt-surface: rgba(255,255,255,0.04);
+  --tt-surface-hover: rgba(255,255,255,0.07);
+  --tt-border: rgba(255,255,255,0.09);
+  --tt-border-strong: rgba(255,255,255,0.16);
+  --tt-text-muted: rgba(255,255,255,0.5);
+  --tt-text-faint: rgba(255,255,255,0.35);
+  --tt-text-dim: rgba(255,255,255,0.18);
+  --tt-nav-bg: rgba(10,10,10,0.92);
+  --tt-kbd-bg: rgba(255,255,255,0.08);
+  --tt-kbd-text: rgba(255,255,255,0.65);
+  --tt-grid-line: rgba(255,255,255,0.05);
+}
+
+[data-theme="light"] {
+  --tt-bg: #f5f5f3;
+  --tt-bg-elevated: #ffffff;
+  --tt-accent: #0891b2;
+  --tt-accent-secondary: #e11d48;
+  --tt-text: #111111;
+
+  --tt-surface: rgba(0,0,0,0.04);
+  --tt-surface-hover: rgba(0,0,0,0.07);
+  --tt-border: rgba(0,0,0,0.1);
+  --tt-border-strong: rgba(0,0,0,0.18);
+  --tt-text-muted: rgba(0,0,0,0.5);
+  --tt-text-faint: rgba(0,0,0,0.38);
+  --tt-text-dim: rgba(0,0,0,0.2);
+  --tt-nav-bg: rgba(245,245,243,0.92);
+  --tt-kbd-bg: rgba(0,0,0,0.07);
+  --tt-kbd-text: rgba(0,0,0,0.55);
+  --tt-grid-line: rgba(0,0,0,0.06);
 }
 
 html {
@@ -24,8 +51,7 @@ html {
 body {
   font-family: var(--font-comfortaa), -apple-system, sans-serif;
   color: var(--tt-text);
-  background: linear-gradient(to bottom, var(--tt-bg-elevated), var(--tt-bg));
-  background-attachment: fixed;
+  background-color: var(--tt-bg);
   overflow-x: hidden;
   min-height: 100vh;
   width: 100%;

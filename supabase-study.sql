@@ -30,6 +30,7 @@ ALTER TABLE study_posts DROP CONSTRAINT IF EXISTS study_posts_author_id_fkey;
 ALTER TABLE study_posts ADD COLUMN IF NOT EXISTS author_username text;
 ALTER TABLE study_posts ADD COLUMN IF NOT EXISTS chapters        text[]   NOT NULL DEFAULT '{}'::text[];
 ALTER TABLE study_posts ADD COLUMN IF NOT EXISTS is_public       boolean  NOT NULL DEFAULT true;
+ALTER TABLE study_posts ADD COLUMN IF NOT EXISTS edit_token      text;
 
 ALTER TABLE study_posts ENABLE ROW LEVEL SECURITY;
 
@@ -38,9 +39,12 @@ DROP POLICY IF EXISTS "study_posts_insert" ON study_posts;
 DROP POLICY IF EXISTS "study_posts_update" ON study_posts;
 DROP POLICY IF EXISTS "study_posts_delete" ON study_posts;
 
--- Anyone can read public posts; posts are immutable once published (no update/delete via client).
+-- Anyone can read public posts.
 CREATE POLICY "study_posts_read"   ON study_posts FOR SELECT USING (is_public = true);
 CREATE POLICY "study_posts_insert" ON study_posts FOR INSERT WITH CHECK (true);
+-- Open update/delete for the sandbox — no real auth, anon key is already client-side.
+CREATE POLICY "study_posts_update" ON study_posts FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "study_posts_delete" ON study_posts FOR DELETE USING (true);
 
 -- ── Study votes ──────────────────────────────────────────────
 -- user_id stores an anonymous session ID from localStorage (not an auth.users FK).

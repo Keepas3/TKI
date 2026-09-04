@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import TetrisGame from './TetrisGame';
+import BlockGame from './BlockGame';
 import { type PuzzleDifficulty, type PuzzleCategory, setDailyPuzzle } from './puzzleData';
 import { supabase } from '../app/utils/supabaseClient';
 
@@ -76,10 +76,10 @@ function boardToMakeBoard(board: number[][]): string {
   }
   if (firstNonEmpty === -1) return 'makeBoard()  // empty board';
   const rows = board.slice(firstNonEmpty).map(row => {
-    const cells = row.map(v => v === 0 ? '_' : 'X').join(',');
+    const cells = row.map(v => v === 0 ? '_' : String(v)).join(',');
     return `    [${cells}],`;
   });
-  return `makeBoard(\n${rows.join('\n')}\n  )`;
+  return `makeBoard(  // 1=I 2=O 3=T 4=S 5=Z 6=J 7=L\n${rows.join('\n')}\n  )`;
 }
 
 // ---------------------------------------------------------------------------
@@ -92,7 +92,7 @@ interface CapturedPuzzle {
   timestamp: number;
 }
 
-type Phase = 'idle' | 'recording' | 'done';
+type Phase = 'idle' | 'setup' | 'recording' | 'done';
 type RecordMode = 'position' | 'opener';
 
 // ---------------------------------------------------------------------------
@@ -156,6 +156,8 @@ export default function PuzzleEditor() {
   const [phase, setPhase] = useState<Phase>('idle');
   const phaseRef = useRef<Phase>('idle');
   const [recordMode, setRecordMode] = useState<RecordMode>('position');
+  const [showOpenerPrompt, setShowOpenerPrompt] = useState(false);
+  const [usedSetup, setUsedSetup] = useState(false);
 
   const [frozenBoard, setFrozenBoard] = useState<number[][] | null>(null);
   const piecesRecordedRef = useRef<number[]>([]);
@@ -260,14 +262,16 @@ export default function PuzzleEditor() {
     setPiecesRecorded(next);
   }, []);
 
-  // "Record Opener PC": clear the board without remounting so the piece that
-  // was already falling (whatever piece the player had when they clicked)
-  // becomes piece 0 of the recording. Bumping gameKey previously caused a
-  // fresh random bag, silently discarding the current piece — this approach
-  // keeps the piece order intact and only erases the board beneath it.
-  // Same pre-seed + skip logic as handleFreeze to guard against the
-  // clearBoardRef respawn triggering a lock before phaseRef is readable.
+  // "Record Opener PC": shows a prompt asking whether the user needs setup
+  // time first. Two paths from there — see handleOpenerPCNow / handleStartSetup.
   const handleOpenerPC = useCallback(() => {
+    setShowOpenerPrompt(true);
+  }, []);
+
+  // "No — start now": classic empty-board path. Clear the board, keep the
+  // current piece at the top, and begin recording immediately.
+  const handleOpenerPCNow = useCallback(() => {
+    setShowOpenerPrompt(false);
     const live = liveStateRef.current;
     const emptyBoard: number[][] = Array.from({ length: 20 }, () => Array(10).fill(0));
     setFrozenBoard(emptyBoard);
@@ -278,7 +282,35 @@ export default function PuzzleEditor() {
     phaseRef.current = 'recording';
     setPhase('recording');
     setRecordMode('opener');
-    clearBoardRef.current?.();   // clears board, re-spawns current piece at top
+    clearBoardRef.current?.();
+  }, []);
+
+  // "Yes — set up first": enters setup phase. Player stacks freely; clicking
+  // Ready snapshots the current board and starts recording from that state.
+  // Auto-focus the game so the player can immediately stack without having to
+  // re-click the board (the "Yes" button click would otherwise unfocus it).
+  const handleStartSetup = useCallback(() => {
+    setShowOpenerPrompt(false);
+    setUsedSetup(true);
+    phaseRef.current = 'setup';
+    setPhase('setup');
+    setRecordMode('opener');
+    setGameFocused(true);
+    focusRef.current = true;
+  }, []);
+
+  // Called when the player clicks "Ready" from the setup phase. Snapshots the
+  // current board (same logic as handleFreeze) and transitions to recording.
+  const handleReadyFromSetup = useCallback(() => {
+    const live = liveStateRef.current;
+    if (!live) return;
+    const cleanBoard = live.board.map(row => row.map(v => v >= 8 ? 0 : v));
+    setFrozenBoard(cleanBoard);
+    piecesRecordedRef.current = [live.pieceType];
+    setPiecesRecorded([live.pieceType]);
+    skipFirstLockRef.current = true;
+    phaseRef.current = 'recording';
+    setPhase('recording');
   }, []);
 
   const handleReset = useCallback(() => {
@@ -290,6 +322,8 @@ export default function PuzzleEditor() {
     setPiecesRecorded([]);
     skipFirstLockRef.current = false;
     setRecordMode('position');
+    setShowOpenerPrompt(false);
+    setUsedSetup(false);
     setGameKey(k => k + 1);
   }, []);
 
@@ -315,6 +349,7 @@ export default function PuzzleEditor() {
     setDailyId(id);
   }, []);
 
+  const [authorUsername, setAuthorUsername] = useState('');
   const [submitState, setSubmitState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
 
   const handleSubmit = useCallback(async () => {
@@ -327,9 +362,11 @@ export default function PuzzleEditor() {
       description: description || null,
       board: captured.board,
       queue: captured.queue,
+      author_username: authorUsername.trim() || null,
     });
+    if (error) console.error('[puzzle submit]', error.message);
     setSubmitState(error ? 'error' : 'done');
-  }, [captured, name, difficulty, category, description]);
+  }, [captured, name, difficulty, category, description, authorUsername]);
 
   const snippet = captured ? `  {
     id: '${(name || 'new-puzzle').toLowerCase().replace(/\s+/g, '-')}',
@@ -371,11 +408,20 @@ export default function PuzzleEditor() {
         {/* Steps */}
         <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
           {recordMode === 'opener' ? (
-            <>
-              <Step number={1} label="Pick: Opener PC" active={phase === 'idle'} done={phase !== 'idle'} />
-              <Step number={2} label="Play & solve the PC" active={phase === 'recording'} done={phase === 'done'} />
-              <Step number={3} label="Copy snippet" active={phase === 'done'} done={false} />
-            </>
+            usedSetup ? (
+              <>
+                <Step number={1} label="Pick: Opener PC" active={false} done={true} />
+                <Step number={2} label="Set up the board" active={phase === 'setup'} done={phase === 'recording' || phase === 'done'} />
+                <Step number={3} label="Play & solve the PC" active={phase === 'recording'} done={phase === 'done'} />
+                <Step number={4} label="Copy snippet" active={phase === 'done'} done={false} />
+              </>
+            ) : (
+              <>
+                <Step number={1} label="Pick: Opener PC" active={phase === 'idle'} done={phase !== 'idle'} />
+                <Step number={2} label="Play & solve the PC" active={phase === 'recording'} done={phase === 'done'} />
+                <Step number={3} label="Copy snippet" active={phase === 'done'} done={false} />
+              </>
+            )
           ) : (
             <>
               <Step number={1} label="Play to a setup" active={phase === 'idle'} done={phase !== 'idle'} />
@@ -388,9 +434,8 @@ export default function PuzzleEditor() {
 
         {/* Action */}
         <div style={{ padding: '12px 14px', flexShrink: 0 }}>
-          {phase === 'idle' && (
+          {phase === 'idle' && !showOpenerPrompt && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {/* Opener PC: empty board, record all pieces from scratch */}
               <button
                 onClick={handleOpenerPC}
                 style={{
@@ -406,7 +451,6 @@ export default function PuzzleEditor() {
                 Empty board → play → PC auto-detected
               </div>
               <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '2px 0' }} />
-              {/* Position puzzle: freeze a mid-game setup, then solve */}
               <button
                 onClick={handleFreeze}
                 style={{
@@ -421,6 +465,88 @@ export default function PuzzleEditor() {
               <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.28)', textAlign: 'center', lineHeight: 1.4 }}>
                 Play to a setup, freeze it, then solve
               </div>
+            </div>
+          )}
+
+          {phase === 'idle' && showOpenerPrompt && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 11, color: '#fff', fontWeight: 600, letterSpacing: '0.02em' }}>
+                ⏺ Record Opener PC
+              </div>
+              <div style={{
+                fontSize: 10, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5,
+                background: 'rgba(255,255,255,0.04)', borderRadius: 5, padding: '7px 9px',
+              }}>
+                Need time to set up the board first?
+              </div>
+              <button
+                onClick={handleStartSetup}
+                style={{
+                  width: '100%', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)',
+                  color: '#818cf8', borderRadius: 6, padding: '7px 0',
+                  fontFamily: 'monospace', fontSize: 11, fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Yes — set up first
+              </button>
+              <button
+                onClick={handleOpenerPCNow}
+                style={{
+                  width: '100%', background: 'var(--tt-accent)', border: 'none',
+                  color: '#000', borderRadius: 6, padding: '7px 0',
+                  fontFamily: 'monospace', fontSize: 11, fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                No — start now
+              </button>
+              <button
+                onClick={() => setShowOpenerPrompt(false)}
+                style={{
+                  background: 'transparent', border: 'none',
+                  color: 'rgba(255,255,255,0.3)', fontSize: 10,
+                  cursor: 'pointer', padding: '2px 0', fontFamily: 'monospace',
+                }}
+              >
+                ← Back
+              </button>
+            </div>
+          )}
+
+          {phase === 'setup' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{
+                background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)',
+                borderRadius: 6, padding: '8px 10px', fontSize: 10,
+                color: '#818cf8', lineHeight: 1.6,
+              }}>
+                <div style={{ fontWeight: 700, marginBottom: 3 }}>Stack your setup on the board</div>
+                <div style={{ opacity: 0.75 }}>
+                  Play pieces until the board looks the way you want the puzzle to start. When you&apos;re happy with the position, click Ready — that exact board state will be the puzzle&apos;s starting position.
+                </div>
+              </div>
+              <button
+                onClick={handleReadyFromSetup}
+                style={{
+                  width: '100%', background: 'var(--tt-accent)', border: 'none',
+                  color: '#000', borderRadius: 6, padding: '8px 0',
+                  fontFamily: 'monospace', fontSize: 12, fontWeight: 700,
+                  cursor: 'pointer', letterSpacing: '0.04em',
+                }}
+              >
+                ✓ Ready — Start Recording
+              </button>
+              <button
+                onClick={handleReset}
+                style={{
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                  color: 'rgba(255,255,255,0.5)', borderRadius: 6, padding: '6px 0',
+                  fontFamily: 'monospace', fontSize: 11, cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
             </div>
           )}
 
@@ -569,13 +695,15 @@ export default function PuzzleEditor() {
         {phase !== 'idle' && (
           <div style={{
             position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
-            background: phase === 'recording' ? 'rgba(74,222,128,0.15)' : 'rgba(167,139,250,0.15)',
-            border: `1px solid ${phase === 'recording' ? 'rgba(74,222,128,0.4)' : 'rgba(167,139,250,0.4)'}`,
-            color: phase === 'recording' ? '#4ade80' : '#a78bfa',
+            background: phase === 'setup' ? 'rgba(99,102,241,0.15)' : phase === 'recording' ? 'rgba(74,222,128,0.15)' : 'rgba(167,139,250,0.15)',
+            border: `1px solid ${phase === 'setup' ? 'rgba(99,102,241,0.4)' : phase === 'recording' ? 'rgba(74,222,128,0.4)' : 'rgba(167,139,250,0.4)'}`,
+            color: phase === 'setup' ? '#818cf8' : phase === 'recording' ? '#4ade80' : '#a78bfa',
             borderRadius: 20, padding: '4px 14px', fontSize: 11,
             letterSpacing: '0.06em', zIndex: 10, whiteSpace: 'nowrap',
           }}>
-            {phase === 'recording'
+            {phase === 'setup'
+              ? '◎ Setup — stack pieces, then click Ready'
+              : phase === 'recording'
               ? `● ${recordMode === 'opener' ? 'Opener PC' : 'Recording'} — ${piecesRecorded.length} piece${piecesRecorded.length === 1 ? '' : 's'} placed`
               : '✓ PC captured — fill in details on the right'}
           </div>
@@ -585,7 +713,7 @@ export default function PuzzleEditor() {
           ref={gameAreaRef}
           style={{ position: 'relative', flexShrink: 0, transform: 'scale(1.2)', transformOrigin: 'center center', margin: '60px 30px' }}
         >
-          <TetrisGame
+          <BlockGame
             key={gameKey}
             mode="standard"
             liveStateRef={liveStateRef}
@@ -716,24 +844,47 @@ export default function PuzzleEditor() {
               </button>
             </div>
 
-            {/* Submit for review */}
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 12 }}>
+            {/* Share with Community */}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)' }}>
+                Share with Community
+              </div>
               {submitState === 'done' ? (
-                <p style={{ fontSize: 11, color: '#4ade80', margin: 0 }}>✓ Submitted! We&apos;ll review it and add it to the live site if it&apos;s a good fit.</p>
+                <div style={{ fontSize: 11, color: '#4ade80', lineHeight: 1.5 }}>
+                  ✓ Submitted! It&apos;ll appear on the community page once reviewed.
+                </div>
               ) : (
-                <button
-                  onClick={handleSubmit}
-                  disabled={submitState === 'loading'}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.35)',
-                    color: '#818cf8', borderRadius: 6, padding: '7px 0',
-                    fontFamily: 'monospace', fontSize: 11, cursor: submitState === 'loading' ? 'default' : 'pointer',
-                    opacity: submitState === 'loading' ? 0.6 : 1,
-                  }}
-                >
-                  {submitState === 'loading' ? 'Submitting…' : submitState === 'error' ? 'Error — try again' : '↑ Submit for review'}
-                </button>
+                <>
+                  <input
+                    value={authorUsername}
+                    onChange={e => setAuthorUsername(e.target.value)}
+                    placeholder="Your name (optional)"
+                    maxLength={40}
+                    style={{
+                      width: '100%', boxSizing: 'border-box',
+                      background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 5, padding: '6px 10px', color: '#fff',
+                      fontFamily: 'monospace', fontSize: 11,
+                    }}
+                  />
+                  <button
+                    onClick={handleSubmit}
+                    disabled={submitState === 'loading'}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.35)',
+                      color: '#818cf8', borderRadius: 6, padding: '7px 0',
+                      fontFamily: 'monospace', fontSize: 11, fontWeight: 700,
+                      cursor: submitState === 'loading' ? 'default' : 'pointer',
+                      opacity: submitState === 'loading' ? 0.6 : 1,
+                    }}
+                  >
+                    {submitState === 'loading' ? 'Submitting…' : submitState === 'error' ? '✕ Error — try again' : '↑ Submit to Community'}
+                  </button>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.22)', lineHeight: 1.5 }}>
+                    Pending review before it appears publicly.
+                  </div>
+                </>
               )}
             </div>
           </div>

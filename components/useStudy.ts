@@ -12,13 +12,13 @@ export type ViewType = 'all' | 'topic';
 export type SortOrder = 'hot' | 'new';
 export type BoardType = 'single' | '2v2' | 'coop';
 
-export const TOPICS: { id: Topic; label: string; color: string }[] = [
-  { id: 'opening', label: 'Openings',      color: '#38bdf8' },
-  { id: '40l',     label: '40 Lines',      color: '#4ade80' },
-  { id: 'pc',      label: 'Perfect Clear', color: '#a78bfa' },
-  { id: 'blitz',   label: 'Blitz',         color: '#f87171' },
-  { id: 'combo',   label: 'Combos',        color: '#fbbf24' },
-  { id: 'general', label: 'General',       color: '#94a3b8' },
+export const TOPICS: { id: Topic; label: string; color: string; desc: string }[] = [
+  { id: 'opening', label: 'Openings',      color: '#38bdf8', desc: 'First-piece setups & stacking patterns' },
+  { id: '40l',     label: '40 Lines',      color: '#4ade80', desc: 'Sprint strategies to clear 40 lines fast' },
+  { id: 'pc',      label: 'Perfect Clear', color: '#a78bfa', desc: 'PC setups, finishes & continuation paths' },
+  { id: 'blitz',   label: 'Blitz',         color: '#f87171', desc: 'Scoring efficiently under the clock' },
+  { id: 'combo',   label: 'Combos',        color: '#fbbf24', desc: 'Keeping chains alive & maximizing attacks' },
+  { id: 'general', label: 'General',       color: '#94a3b8', desc: 'Fundamentals, tips & everything else' },
 ];
 
 export const BOARD_TYPES: { id: BoardType; label: string; desc: string }[] = [
@@ -233,6 +233,34 @@ export function useVote(postId: string, userId: string | null) {
 }
 
 // ---------------------------------------------------------------------------
+// Local ownership — tracks post IDs created in this browser
+// ---------------------------------------------------------------------------
+
+const OWNED_KEY = 'study-owned-posts';
+
+export function getOwnedPostIds(): string[] {
+  try { return JSON.parse(localStorage.getItem(OWNED_KEY) ?? '[]'); } catch { return []; }
+}
+
+export function addOwnedPostId(id: string): void {
+  try {
+    const ids = getOwnedPostIds();
+    if (!ids.includes(id)) localStorage.setItem(OWNED_KEY, JSON.stringify([...ids, id]));
+  } catch { /* ignore */ }
+}
+
+export function isOwnedPost(id: string): boolean {
+  try { return getOwnedPostIds().includes(id); } catch { return false; }
+}
+
+// Fetch the stored edit token for a post (used by the edit page to verify URL tokens).
+export async function fetchEditToken(postId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('study_posts').select('edit_token').eq('id', postId).single();
+  return (data as { edit_token: string | null } | null)?.edit_token ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // Save / delete
 // ---------------------------------------------------------------------------
 
@@ -241,6 +269,7 @@ export async function savePost(
   authorId: string | null,
   existingId?: string,
   authorUsername?: string | null,
+  editToken?: string,
 ): Promise<{ id: string } | { error: string }> {
   const chapterTitles = extractChapterTitles(draft.chapters);
   const payload = {
@@ -249,8 +278,8 @@ export async function savePost(
     title: draft.title.trim(),
     topic: draft.topic,
     summary: draft.summary.trim() || null,
-    content: draft.chapters,   // stores the full Chapter[] in the jsonb column
-    chapters: chapterTitles,   // stores the title strings for card previews
+    content: draft.chapters,
+    chapters: chapterTitles,
     is_public: draft.is_public,
     updated_at: new Date().toISOString(),
   };
@@ -261,7 +290,8 @@ export async function savePost(
     return { id: existingId };
   }
 
-  const { data, error } = await supabase.from('study_posts').insert(payload).select('id').single();
+  const insertPayload = { ...payload, ...(editToken ? { edit_token: editToken } : {}) };
+  const { data, error } = await supabase.from('study_posts').insert(insertPayload).select('id').single();
   if (error) return { error: error.message };
   return { id: (data as { id: string }).id };
 }

@@ -25,12 +25,12 @@ function StudyCard({ post }: { post: StudyPost }) {
       style={{
         display: 'block', textDecoration: 'none', color: 'inherit',
         backgroundColor: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.08)',
+        border: '1px solid var(--tt-border)',
         borderRadius: '8px', padding: '0.9rem 1rem',
         transition: 'background-color 0.12s, border-color 0.12s',
       }}
-      onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.14)'; }}
-      onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
+      onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'var(--tt-surface)'; e.currentTarget.style.borderColor = 'var(--tt-border-strong)'; }}
+      onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'var(--tt-border)'; }}
     >
       {/* Header: icon + title */}
       <div style={{ display: 'flex', gap: '0.7rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
@@ -45,7 +45,7 @@ function StudyCard({ post }: { post: StudyPost }) {
             {post.title}
           </h3>
           {/* ♥ votes · author · time · private badge */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', fontSize: '0.68rem', color: 'rgba(255,255,255,0.38)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', fontSize: '0.68rem', color: 'var(--tt-text-faint)' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
               <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor">
                 <path d="M6 10.5S1 7 1 3.5A2.5 2.5 0 0 1 6 2a2.5 2.5 0 0 1 5 1.5C11 7 6 10.5 6 10.5z" />
@@ -53,7 +53,7 @@ function StudyCard({ post }: { post: StudyPost }) {
               {post.vote_count}
             </span>
             <span>·</span>
-            <span style={{ color: 'rgba(255,255,255,0.55)' }}>{post.author_username ?? 'Anonymous'}</span>
+            <span style={{ color: 'var(--tt-text-muted)' }}>{post.author_username ?? 'Anonymous'}</span>
             <span>·</span>
             <span>{timeAgo(post.created_at)}</span>
             {!post.is_public && (
@@ -70,7 +70,7 @@ function StudyCard({ post }: { post: StudyPost }) {
       {post.chapters.length > 0 && (
         <ul style={{ margin: '0.45rem 0 0 0', padding: '0 0 0 0.2rem', listStyle: 'none', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.1rem 0.5rem' }}>
           {post.chapters.slice(0, 6).map((ch, i) => (
-            <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+            <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.68rem', color: 'var(--tt-text-faint)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
               <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="1.5">
                 <circle cx="4" cy="4" r="2.5" />
               </svg>
@@ -95,14 +95,14 @@ type SidebarView =
 
 const SIDEBAR_LINK: React.CSSProperties = {
   display: 'block', padding: '0.42rem 0.75rem', borderRadius: '5px',
-  fontSize: '0.82rem', color: 'rgba(255,255,255,0.65)', textDecoration: 'none',
+  fontSize: '0.82rem', color: 'var(--tt-text-muted)', textDecoration: 'none',
   cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'monospace',
   width: '100%', textAlign: 'left', letterSpacing: '0.02em', transition: 'background-color 0.1s, color 0.1s',
 };
 
 function sidebarActive(active: boolean): React.CSSProperties {
   return active
-    ? { backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', fontWeight: 'bold' }
+    ? { background: 'var(--tt-surface-hover)', color: 'var(--tt-text)', fontWeight: 'bold' }
     : {};
 }
 
@@ -116,8 +116,8 @@ function SidebarItem({ label, active, onClick, indent }: { label: string; active
         paddingLeft: indent ? '1.5rem' : '0.75rem',
         ...sidebarActive(active),
       }}
-      onMouseOver={(e) => { if (!active) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; } }}
-      onMouseOut={(e) => { if (!active) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.65)'; } }}
+      onMouseOver={(e) => { if (!active) { e.currentTarget.style.background = 'var(--tt-surface)'; e.currentTarget.style.color = 'var(--tt-text)'; } }}
+      onMouseOut={(e) => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--tt-text-muted)'; } }}
     >
       {label}
     </button>
@@ -130,12 +130,12 @@ function Sidebar({ active, onChange }: { active: SidebarView; onChange: (v: Side
   return (
     <nav style={{
       width: SIDEBAR_WIDTH, flexShrink: 0,
-      borderRight: '1px solid rgba(255,255,255,0.08)',
+      borderRight: '1px solid var(--tt-border)',
       paddingTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.05rem',
     }}>
       <SidebarItem label="All studies"    active={active.type === 'all'}       onClick={() => onChange({ type: 'all' })} />
 
-      <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.07)', margin: '0.4rem 0.75rem' }} />
+      <div style={{ height: '1px', backgroundColor: 'var(--tt-border)', margin: '0.4rem 0.75rem' }} />
 
       <SidebarItem label="Topics" active={isTopics} onClick={() => onChange({ type: 'topics' })} />
 
@@ -151,17 +151,17 @@ function Sidebar({ active, onChange }: { active: SidebarView; onChange: (v: Side
                 ...SIDEBAR_LINK,
                 paddingLeft: '1.25rem',
                 display: 'flex', alignItems: 'center', gap: '0.5rem',
-                color: active.type === 'topic' && active.topic === t.id ? t.color : 'rgba(255,255,255,0.55)',
-                backgroundColor: active.type === 'topic' && active.topic === t.id ? `color-mix(in srgb, ${t.color} 12%, transparent)` : 'transparent',
+                color: active.type === 'topic' && active.topic === t.id ? t.color : 'var(--tt-text-muted)',
+                background: active.type === 'topic' && active.topic === t.id ? `color-mix(in srgb, ${t.color} 12%, transparent)` : 'transparent',
                 fontWeight: active.type === 'topic' && active.topic === t.id ? 'bold' : 'normal',
               }}
               onMouseOver={(e) => {
                 const isSel = active.type === 'topic' && active.topic === t.id;
-                if (!isSel) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = t.color; }
+                if (!isSel) { e.currentTarget.style.background = 'var(--tt-surface)'; e.currentTarget.style.color = t.color; }
               }}
               onMouseOut={(e) => {
                 const isSel = active.type === 'topic' && active.topic === t.id;
-                if (!isSel) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; }
+                if (!isSel) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--tt-text-muted)'; }
               }}
             >
               <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: t.color, flexShrink: 0, display: 'inline-block' }} />
@@ -171,13 +171,13 @@ function Sidebar({ active, onChange }: { active: SidebarView; onChange: (v: Side
         </div>
       )}
 
-      <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.07)', margin: '0.4rem 0.75rem' }} />
+      <div style={{ height: '1px', backgroundColor: 'var(--tt-border)', margin: '0.4rem 0.75rem' }} />
 
       <Link
         href="/study/what-are-studies"
-        style={{ ...SIDEBAR_LINK, color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-        onMouseOver={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
-        onMouseOut={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}
+        style={{ ...SIDEBAR_LINK, color: 'var(--tt-text-faint)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+        onMouseOver={(e) => { e.currentTarget.style.color = 'var(--tt-text-muted)'; }}
+        onMouseOut={(e) => { e.currentTarget.style.color = 'var(--tt-text-faint)'; }}
       >
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.8">
           <circle cx="6.5" cy="6.5" r="5.5" />
@@ -205,7 +205,7 @@ function EmptyState({ view }: { view: SidebarView }) {
         <path d="M21 7c4-3.1 9.2-5 15-5 2.4 0 4 .2 5 .5v33c-1-.3-2.6-.5-5-.5-5.8 0-11 1.9-15 5V7z" />
       </svg>
       <p style={{ margin: 0, fontSize: '0.88rem' }}>{msg}</p>
-      {sub && <p style={{ margin: 0, fontSize: '0.73rem', color: 'rgba(255,255,255,0.22)' }}>{sub}</p>}
+      {sub && <p style={{ margin: 0, fontSize: '0.73rem', color: 'var(--tt-text-dim)' }}>{sub}</p>}
       <button
         type="button"
         onClick={() => router.push('/study/new')}
@@ -223,17 +223,17 @@ function EmptyState({ view }: { view: SidebarView }) {
 
 function SkeletonCard() {
   return (
-    <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '0.9rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+    <div style={{ backgroundColor: 'var(--tt-surface)', border: '1px solid var(--tt-surface)', borderRadius: '8px', padding: '0.9rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
       <div style={{ display: 'flex', gap: '0.7rem' }}>
-        <div style={{ width: 40, height: 40, borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />
+        <div style={{ width: 40, height: 40, borderRadius: '8px', backgroundColor: 'var(--tt-surface)', flexShrink: 0 }} />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-          <div style={{ height: '0.85rem', width: '70%', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: '4px' }} />
-          <div style={{ height: '0.65rem', width: '45%', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: '4px' }} />
+          <div style={{ height: '0.85rem', width: '70%', backgroundColor: 'var(--tt-border)', borderRadius: '4px' }} />
+          <div style={{ height: '0.65rem', width: '45%', backgroundColor: 'var(--tt-surface)', borderRadius: '4px' }} />
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem 0.5rem' }}>
         {[60, 80, 50, 70].map((w, i) => (
-          <div key={i} style={{ height: '0.6rem', width: `${w}%`, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: '3px' }} />
+          <div key={i} style={{ height: '0.6rem', width: `${w}%`, backgroundColor: 'var(--tt-surface)', borderRadius: '3px' }} />
         ))}
       </div>
       <style>{`@keyframes tt-pulse { from{opacity:0.4} to{opacity:0.85} }`}</style>
@@ -285,7 +285,7 @@ export default function StudyListingPage() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100%', fontFamily: 'monospace', backgroundColor: 'var(--tt-bg, #0a0a0e)' }}>
+    <div style={{ display: 'flex', height: '100%', fontFamily: 'monospace', backgroundColor: 'var(--tt-bg)' }}>
 
       {/* ── Left sidebar ── */}
       <Sidebar active={sidebarView} onChange={setSidebarView} />
@@ -296,9 +296,9 @@ export default function StudyListingPage() {
         {/* Toolbar */}
         <div style={{
           display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap',
-          padding: '1rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.07)',
+          padding: '1rem 1.25rem', borderBottom: '1px solid var(--tt-border)',
           position: 'sticky', top: 0, zIndex: 10,
-          backgroundColor: 'rgba(10,10,14,0.9)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+          backgroundColor: 'var(--tt-nav-bg)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
         }}>
           {/* Search */}
           <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.4rem', flex: '1 1 240px', maxWidth: '480px' }}>
@@ -308,8 +308,8 @@ export default function StudyListingPage() {
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder={`${viewTitle()}…`}
               style={{
-                flex: 1, backgroundColor: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)',
-                borderRadius: '6px', padding: '0.5rem 0.85rem', color: 'white',
+                flex: 1, backgroundColor: 'var(--tt-border)', border: '1px solid var(--tt-border-strong)',
+                borderRadius: '6px', padding: '0.5rem 0.85rem', color: 'var(--tt-text)',
                 fontFamily: 'monospace', fontSize: '0.8rem', outline: 'none',
               }}
             />
@@ -317,8 +317,8 @@ export default function StudyListingPage() {
               type="submit"
               aria-label="Search"
               style={{
-                backgroundColor: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)',
-                borderRadius: '6px', color: 'rgba(255,255,255,0.7)', padding: '0.5rem 0.75rem', cursor: 'pointer',
+                backgroundColor: 'var(--tt-surface-hover)', border: '1px solid var(--tt-border-strong)',
+                borderRadius: '6px', color: 'var(--tt-text-muted)', padding: '0.5rem 0.75rem', cursor: 'pointer',
                 display: 'flex', alignItems: 'center',
               }}
             >
@@ -329,7 +329,7 @@ export default function StudyListingPage() {
             </button>
             {search && (
               <button type="button" onClick={() => { setSearch(''); setSearchInput(''); }}
-                style={{ backgroundColor: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'rgba(255,255,255,0.4)', padding: '0.5rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem' }}>
+                style={{ backgroundColor: 'transparent', border: '1px solid var(--tt-surface-hover)', borderRadius: '6px', color: 'var(--tt-text-faint)', padding: '0.5rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem' }}>
                 ✕
               </button>
             )}
@@ -340,8 +340,8 @@ export default function StudyListingPage() {
             value={sort}
             onChange={(e) => setSort(e.target.value as SortOrder)}
             style={{
-              backgroundColor: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)',
-              borderRadius: '6px', color: 'rgba(255,255,255,0.75)', fontFamily: 'monospace',
+              backgroundColor: 'var(--tt-border)', border: '1px solid var(--tt-border-strong)',
+              borderRadius: '6px', color: 'var(--tt-text-muted)', fontFamily: 'monospace',
               fontSize: '0.8rem', padding: '0.5rem 0.75rem', outline: 'none', cursor: 'pointer',
             }}
           >
@@ -380,7 +380,7 @@ export default function StudyListingPage() {
                     backgroundColor: `color-mix(in srgb, ${t.color} 10%, rgba(0,0,0,0.35))`,
                     border: `1px solid color-mix(in srgb, ${t.color} 28%, transparent)`,
                     borderRadius: '8px', padding: '0.8rem 1rem', cursor: 'pointer',
-                    fontFamily: 'monospace', color: 'white', textAlign: 'left',
+                    fontFamily: 'monospace', color: 'var(--tt-text)', textAlign: 'left',
                     transition: 'background-color 0.12s, border-color 0.12s',
                   }}
                   onMouseOver={(e) => { e.currentTarget.style.backgroundColor = `color-mix(in srgb, ${t.color} 18%, rgba(0,0,0,0.35))`; e.currentTarget.style.borderColor = `color-mix(in srgb, ${t.color} 50%, transparent)`; }}

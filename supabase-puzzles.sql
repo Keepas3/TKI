@@ -1,5 +1,5 @@
 -- ============================================================
--- Blocks Content: Puzzle Submissions
+-- TKI: Puzzle Submissions
 -- Run this in your Supabase SQL editor.
 -- Re-running is safe (all statements use IF NOT EXISTS / DROP IF EXISTS).
 -- ============================================================
@@ -48,3 +48,87 @@ CREATE POLICY "puzzle_submissions_insert" ON puzzle_submissions
 -- Admin review (update status/admin_note) is done via the Supabase dashboard
 -- or a future service-role API call. No client-side update policy needed now.
 -- CREATE POLICY "puzzle_submissions_update" ON puzzle_submissions FOR UPDATE USING (true);
+
+-- ============================================================
+-- daily_schedule: maps a calendar date to the puzzle shown as
+-- "Today's Puzzle". puzzle_id can be a built-in slug from
+-- puzzleData.ts OR a UUID from puzzle_submissions (approved).
+-- Falls back to date-based rotation when no row exists for today.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS daily_schedule (
+  date       date PRIMARY KEY,
+  puzzle_id  text NOT NULL
+);
+
+ALTER TABLE daily_schedule ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "daily_schedule_select" ON daily_schedule;
+DROP POLICY IF EXISTS "daily_schedule_insert" ON daily_schedule;
+DROP POLICY IF EXISTS "daily_schedule_update" ON daily_schedule;
+DROP POLICY IF EXISTS "daily_schedule_delete" ON daily_schedule;
+
+-- Anyone can read (needed for the client-side daily puzzle fetch).
+CREATE POLICY "daily_schedule_select" ON daily_schedule FOR SELECT USING (true);
+-- Anon key has full write access — this is a sandbox admin-only table.
+CREATE POLICY "daily_schedule_insert" ON daily_schedule FOR INSERT WITH CHECK (true);
+CREATE POLICY "daily_schedule_update" ON daily_schedule FOR UPDATE USING (true);
+CREATE POLICY "daily_schedule_delete" ON daily_schedule FOR DELETE USING (true);
+
+-- ============================================================
+-- game_scores: sprint (and formerly blitz) leaderboard.
+-- Only sprint entries are written now — blitz no longer has a score.
+-- Migration: if the old tetris_scores table exists, rename it.
+-- ============================================================
+
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'tetris_scores')
+     AND NOT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'game_scores') THEN
+    ALTER TABLE tetris_scores RENAME TO game_scores;
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS game_scores (
+  id         bigserial   PRIMARY KEY,
+  name       text        NOT NULL,
+  score      bigint      NOT NULL,
+  level      int         NOT NULL DEFAULT 1,
+  mode       text        NOT NULL DEFAULT 'sprint',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE game_scores ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "game_scores_select" ON game_scores;
+DROP POLICY IF EXISTS "game_scores_insert" ON game_scores;
+CREATE POLICY "game_scores_select" ON game_scores FOR SELECT USING (true);
+CREATE POLICY "game_scores_insert" ON game_scores FOR INSERT WITH CHECK (true);
+
+-- ============================================================
+-- puzzle_votes: one row per (puzzle, voter). voter_fingerprint
+-- is either a Supabase auth user id (future) or a random UUID
+-- stored in the visitor's localStorage. Primary key prevents
+-- double-votes from the same browser/account.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS puzzle_votes (
+  puzzle_id         text        NOT NULL,
+  voter_fingerprint text        NOT NULL,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (puzzle_id, voter_fingerprint)
+);
+
+ALTER TABLE puzzle_votes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "puzzle_votes_select" ON puzzle_votes;
+DROP POLICY IF EXISTS "puzzle_votes_insert" ON puzzle_votes;
+DROP POLICY IF EXISTS "puzzle_votes_delete" ON puzzle_votes;
+CREATE POLICY "puzzle_votes_select" ON puzzle_votes FOR SELECT USING (true);
+CREATE POLICY "puzzle_votes_insert" ON puzzle_votes FOR INSERT WITH CHECK (true);
+CREATE POLICY "puzzle_votes_delete" ON puzzle_votes FOR DELETE USING (true);
+
+-- Add 'featured' to the status enum on puzzle_submissions.
+-- A featured puzzle appears in Community and may be highlighted on the hub.
+ALTER TABLE puzzle_submissions DROP CONSTRAINT IF EXISTS puzzle_submissions_status_check;
+ALTER TABLE puzzle_submissions ADD CONSTRAINT puzzle_submissions_status_check
+  CHECK (status IN ('pending', 'approved', 'featured', 'rejected'));

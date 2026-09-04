@@ -2,8 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePost, useVote, TOPICS, type Chapter, type TextBlock } from './useStudy';
-import TetrisGame from './TetrisGame';
+import { usePost, useVote, TOPICS, isOwnedPost, type Chapter, type TextBlock } from './useStudy';
+import BlockGame from './BlockGame';
 
 // ── Board display (static) ───────────────────────────────────────────────────
 
@@ -168,9 +168,9 @@ function BlockRenderer({ block }: { block: TextBlock }) {
         fontSize: isH2 ? 16 : 13.5,
         fontWeight: isH2 ? 700 : 600,
         fontFamily: PROSE_FONT,
-        color: isH2 ? '#f1f5f9' : '#cbd5e1',
+        color: isH2 ? 'var(--tt-text)' : 'var(--tt-text-muted)',
         letterSpacing: isH2 ? -0.3 : 0,
-        borderBottom: isH2 ? '1px solid rgba(255,255,255,0.08)' : 'none',
+        borderBottom: isH2 ? '1px solid var(--tt-border)' : 'none',
         paddingBottom: isH2 ? 6 : 0,
         lineHeight: 1.3,
       }}>
@@ -182,7 +182,7 @@ function BlockRenderer({ block }: { block: TextBlock }) {
     return (
       <p style={{
         margin: '0 0 12px', lineHeight: 1.78,
-        color: 'rgba(255,255,255,0.78)', fontSize: 13.5,
+        color: 'var(--tt-text-muted)', fontSize: 13.5,
         fontFamily: PROSE_FONT,
       }}>
         {renderWithPieces(block.text)}
@@ -197,7 +197,7 @@ function BlockRenderer({ block }: { block: TextBlock }) {
         background: 'rgba(56,189,248,0.07)',
         borderRadius: '0 6px 6px 0',
         fontSize: 13, lineHeight: 1.7,
-        color: 'rgba(255,255,255,0.85)',
+        color: 'var(--tt-text)',
         fontFamily: PROSE_FONT,
       }}>
         {renderWithPieces(block.text)}
@@ -213,7 +213,7 @@ function BlockRenderer({ block }: { block: TextBlock }) {
           style={{ maxWidth: '100%', borderRadius: 4, display: 'block' }}
         />
         {block.caption && (
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
+          <div style={{ fontSize: 10, color: 'var(--tt-text-faint)', marginTop: 4 }}>
             {block.caption}
           </div>
         )}
@@ -283,7 +283,7 @@ function ChapterBoardArea({ chapter }: { chapter: Chapter }) {
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '7px 14px',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid var(--tt-border)',
           flexShrink: 0,
         }}>
           <button
@@ -292,7 +292,7 @@ function ChapterBoardArea({ chapter }: { chapter: Chapter }) {
               padding: '4px 10px', borderRadius: 4,
               border: '1px solid rgba(255,255,255,0.15)',
               background: 'transparent',
-              color: 'rgba(255,255,255,0.5)',
+              color: 'var(--tt-text-muted)',
               fontFamily: 'monospace', fontSize: 11,
               cursor: 'pointer', outline: 'none',
             }}
@@ -305,7 +305,7 @@ function ChapterBoardArea({ chapter }: { chapter: Chapter }) {
               padding: '4px 10px', borderRadius: 4,
               border: '1px solid rgba(255,255,255,0.12)',
               background: 'transparent',
-              color: 'rgba(255,255,255,0.4)',
+              color: 'var(--tt-text-faint)',
               fontFamily: 'monospace', fontSize: 11,
               cursor: 'pointer', outline: 'none',
             }}
@@ -323,7 +323,7 @@ function ChapterBoardArea({ chapter }: { chapter: Chapter }) {
           overflow: 'auto',
           padding: 8,
         }}>
-          <TetrisGame
+          <BlockGame
             key={`study-viewer-${chapter.id}-${playKey}`}
             mode="practice"
             onMenu={() => setIsPlaying(false)}
@@ -377,7 +377,7 @@ function ChapterBoardArea({ chapter }: { chapter: Chapter }) {
           padding: '8px 20px', borderRadius: 6,
           border: '1px solid rgba(255,255,255,0.2)',
           background: 'rgba(255,255,255,0.06)',
-          color: '#e2e8f0',
+          color: 'var(--tt-text)',
           fontFamily: 'monospace', fontWeight: 700, fontSize: 13,
           cursor: 'pointer', outline: 'none',
           display: 'flex', alignItems: 'center', gap: 8,
@@ -407,8 +407,10 @@ export default function StudyPostPage({ id }: { id: string }) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [voteCount, setVoteCount] = useState(0);
   const [anonId, setAnonId] = useState<string | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
 
   useEffect(() => { setAnonId(getAnonId()); }, []);
+  useEffect(() => { if (id) setCanEdit(isOwnedPost(id)); }, [id]);
 
   const { voted, toggle: toggleVote } = useVote(id, anonId);
 
@@ -425,7 +427,7 @@ export default function StudyPostPage({ id }: { id: string }) {
   if (loading) {
     return (
       <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', fontSize: 12 }}>Loading…</div>
+        <div style={{ color: 'var(--tt-text-faint)', fontFamily: 'monospace', fontSize: 12 }}>Loading…</div>
       </div>
     );
   }
@@ -455,21 +457,28 @@ export default function StudyPostPage({ id }: { id: string }) {
   return (
     <div style={{
       display: 'flex', height: '100%', overflow: 'hidden',
-      fontFamily: 'monospace', fontSize: 13, color: '#e2e8f0',
+      fontFamily: 'monospace', fontSize: 13, color: 'var(--tt-text)',
     }}>
 
       {/* ── Left panel ── */}
       <div style={{
         width: 270, flexShrink: 0,
         display: 'flex', flexDirection: 'column',
-        borderRight: '1px solid rgba(255,255,255,0.08)',
+        borderRight: '1px solid var(--tt-border)',
         overflow: 'hidden',
       }}>
         {/* Study info */}
         <div style={{ padding: '18px 16px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <Link href="/study" style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textDecoration: 'none', letterSpacing: 0.5 }}>
-            ← All studies
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Link href="/study" style={{ fontSize: 10, color: 'var(--tt-text-faint)', textDecoration: 'none', letterSpacing: 0.5 }}>
+              ← All studies
+            </Link>
+            {canEdit && (
+              <Link href={`/study/${post.id}/edit`} style={{ fontSize: 10, color: 'var(--tt-text-faint)', textDecoration: 'none', letterSpacing: 0.5, padding: '2px 7px', borderRadius: 4, border: '1px solid var(--tt-border)' }}>
+                Edit
+              </Link>
+            )}
+          </div>
 
           {/* Topic badge */}
           <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -490,13 +499,13 @@ export default function StudyPostPage({ id }: { id: string }) {
           </div>
 
           {/* Title */}
-          <div style={{ marginTop: 8, fontSize: 20, fontWeight: 800, lineHeight: 1.25, color: '#f1f5f9', letterSpacing: -0.3 }}>
+          <div style={{ marginTop: 8, fontSize: 20, fontWeight: 800, lineHeight: 1.25, color: 'var(--tt-text)', letterSpacing: -0.3 }}>
             {post.title}
           </div>
 
           {/* Summary */}
           {post.summary && (
-            <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--tt-text-muted)', lineHeight: 1.6 }}>
               {post.summary}
             </div>
           )}
@@ -516,7 +525,7 @@ export default function StudyPostPage({ id }: { id: string }) {
           <div style={{
             padding: '10px 16px 5px',
             fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase',
-            color: 'rgba(255,255,255,0.3)',
+            color: 'var(--tt-text-faint)',
           }}>
             {totalChapters} {totalChapters === 1 ? 'chapter' : 'chapters'}
           </div>
@@ -527,24 +536,24 @@ export default function StudyPostPage({ id }: { id: string }) {
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '8px 14px 8px 16px',
-                background: safeIdx === i ? 'rgba(255,255,255,0.07)' : 'transparent',
+                background: safeIdx === i ? 'var(--tt-surface-hover)' : 'transparent',
                 borderLeft: safeIdx === i
                   ? '2px solid var(--tt-accent, #38bdf8)'
                   : '2px solid transparent',
                 cursor: 'pointer',
               }}
             >
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', width: 16, flexShrink: 0 }}>
+              <span style={{ fontSize: 10, color: 'var(--tt-text-faint)', width: 16, flexShrink: 0 }}>
                 {i + 1}
               </span>
               <span style={{
                 fontSize: 12, lineHeight: 1.3,
-                color: safeIdx === i ? '#e2e8f0' : 'rgba(255,255,255,0.5)',
+                color: safeIdx === i ? 'var(--tt-text)' : 'var(--tt-text-muted)',
               }}>
                 {ch.title || 'Untitled'}
               </span>
               {ch.boardType !== 'single' && (
-                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', marginLeft: 'auto', flexShrink: 0 }}>
+                <span style={{ fontSize: 9, color: 'var(--tt-text-dim)', marginLeft: 'auto', flexShrink: 0 }}>
                   {ch.boardType === 'coop' ? 'Co-op' : '2v2'}
                 </span>
               )}
@@ -553,7 +562,7 @@ export default function StudyPostPage({ id }: { id: string }) {
         </div>
 
         {/* Actions */}
-        <div style={{ padding: '10px 16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--tt-border)', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <button
             onClick={() => toggleVote(voteCount, setVoteCount)}
             style={{
@@ -588,7 +597,7 @@ export default function StudyPostPage({ id }: { id: string }) {
               flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               gap: 16, padding: '10px 16px',
-              borderTop: '1px solid rgba(255,255,255,0.06)',
+              borderTop: '1px solid var(--tt-border)',
             }}>
               <button
                 onClick={() => setActiveIdx((i) => Math.max(0, i - 1))}
@@ -604,7 +613,7 @@ export default function StudyPostPage({ id }: { id: string }) {
               >
                 ←
               </button>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', minWidth: 60, textAlign: 'center' }}>
+              <span style={{ fontSize: 11, color: 'var(--tt-text-faint)', minWidth: 60, textAlign: 'center' }}>
                 {safeIdx + 1} / {totalChapters}
               </span>
               <button
@@ -625,7 +634,7 @@ export default function StudyPostPage({ id }: { id: string }) {
           </>
         ) : (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>No chapters</div>
+            <div style={{ color: 'var(--tt-text-dim)', fontSize: 12 }}>No chapters</div>
           </div>
         )}
       </div>
@@ -634,22 +643,22 @@ export default function StudyPostPage({ id }: { id: string }) {
       <div style={{
         width: 300, flexShrink: 0,
         display: 'flex', flexDirection: 'column',
-        borderLeft: '1px solid rgba(255,255,255,0.08)',
+        borderLeft: '1px solid var(--tt-border)',
         overflow: 'hidden',
       }}>
         {activeChapter ? (
           <>
-            <div style={{ padding: '14px 14px 10px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-              <div style={{ fontSize: 10, letterSpacing: 1, color: 'rgba(255,255,255,0.3)', marginBottom: 4 }}>
+            <div style={{ padding: '14px 14px 10px', borderBottom: '1px solid var(--tt-border)', flexShrink: 0 }}>
+              <div style={{ fontSize: 10, letterSpacing: 1, color: 'var(--tt-text-faint)', marginBottom: 4 }}>
                 Chapter {safeIdx + 1}
               </div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', lineHeight: 1.3 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tt-text)', lineHeight: 1.3 }}>
                 {activeChapter.title || 'Untitled'}
               </div>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
               {activeChapter.blocks.length === 0 ? (
-                <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: 11, fontStyle: 'italic' }}>
+                <div style={{ color: 'var(--tt-text-dim)', fontSize: 11, fontStyle: 'italic' }}>
                   No notes for this chapter.
                 </div>
               ) : (
@@ -661,7 +670,7 @@ export default function StudyPostPage({ id }: { id: string }) {
           </>
         ) : (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>No content</div>
+            <div style={{ color: 'var(--tt-text-dim)', fontSize: 12 }}>No content</div>
           </div>
         )}
       </div>
