@@ -370,16 +370,6 @@ export default function PuzzleEditor() {
     setSubmitState(error ? 'error' : 'done');
   }, [captured, name, difficulty, category, description, displayName, user]);
 
-  const snippet = captured ? `  {
-    id: '${(name || 'new-puzzle').toLowerCase().replace(/\s+/g, '-')}',
-    name: '${name || 'New Puzzle'}',
-    category: '${category}',
-    difficulty: '${difficulty}',
-    description: '${description || 'Description here.'}',
-    board: ${boardToMakeBoard(captured.board)},
-    queue: [${captured.queue.join(', ')}],   // ${captured.queue.map(t => PIECE_NAMES[t]).join(', ')}
-  },` : '';
-
   return (
     <div style={{
       display: 'flex', height: '100%', overflow: 'hidden',
@@ -415,13 +405,13 @@ export default function PuzzleEditor() {
                 <Step number={1} label="Pick: Opener PC" active={false} done={true} />
                 <Step number={2} label="Set up the board" active={phase === 'setup'} done={phase === 'recording' || phase === 'done'} />
                 <Step number={3} label="Play & solve the PC" active={phase === 'recording'} done={phase === 'done'} />
-                <Step number={4} label="Copy snippet" active={phase === 'done'} done={false} />
+                <Step number={4} label="Submit to community" active={phase === 'done'} done={false} />
               </>
             ) : (
               <>
                 <Step number={1} label="Pick: Opener PC" active={phase === 'idle'} done={phase !== 'idle'} />
                 <Step number={2} label="Play & solve the PC" active={phase === 'recording'} done={phase === 'done'} />
-                <Step number={3} label="Copy snippet" active={phase === 'done'} done={false} />
+                <Step number={3} label="Submit to community" active={phase === 'done'} done={false} />
               </>
             )
           ) : (
@@ -429,7 +419,7 @@ export default function PuzzleEditor() {
               <Step number={1} label="Play to a setup" active={phase === 'idle'} done={phase !== 'idle'} />
               <Step number={2} label="Freeze position" active={false} done={phase === 'recording' || phase === 'done'} />
               <Step number={3} label="Solve the PC" active={phase === 'recording'} done={phase === 'done'} />
-              <Step number={4} label="Copy snippet" active={phase === 'done'} done={false} />
+              <Step number={4} label="Submit to community" active={phase === 'done'} done={false} />
             </>
           )}
         </div>
@@ -821,25 +811,7 @@ export default function PuzzleEditor() {
               </div>
             </div>
 
-            <div>
-              <div style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 5 }}>
-                Paste into puzzleData.ts → PUZZLES
-              </div>
-              <pre style={{
-                background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 5, padding: '10px 12px', margin: 0,
-                fontSize: 10, color: '#a78bfa', overflowX: 'auto',
-                whiteSpace: 'pre', fontFamily: 'monospace', lineHeight: 1.6,
-              }}>
-                {snippet}
-              </pre>
-            </div>
-
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => navigator.clipboard.writeText(snippet)}
-                style={{ flex: 1, background: 'var(--tt-accent)', border: 'none', color: '#000', borderRadius: 6, padding: '7px 0', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                Copy snippet
-              </button>
               <button onClick={handleSave}
                 style={{ flex: 1, background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.35)', color: '#4ade80', borderRadius: 6, padding: '7px 0', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer' }}>
                 Save puzzle
