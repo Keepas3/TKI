@@ -359,6 +359,43 @@ type LiveState = {
 
 // ── Publish modal ────────────────────────────────────────────────────────────
 
+function StudyUrlCopy({ postId }: { postId: string }) {
+  const [copied, setCopied] = React.useState(false);
+  const url = typeof window !== 'undefined'
+    ? `${window.location.origin}/study/${postId}`
+    : `/study/${postId}`;
+  const copy = () => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <div style={{ display: 'flex', gap: 5, alignItems: 'center', marginBottom: 2 }}>
+      <div style={{
+        flex: 1, padding: '4px 6px', borderRadius: 4,
+        background: 'var(--tt-surface)', border: '1px solid var(--tt-border)',
+        fontFamily: 'monospace', fontSize: 9, color: 'var(--tt-text-faint)',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
+        {url}
+      </div>
+      <button
+        onClick={copy}
+        style={{
+          flexShrink: 0, padding: '4px 8px', borderRadius: 4,
+          background: copied ? 'rgba(74,222,128,0.12)' : 'var(--tt-surface)',
+          border: `1px solid ${copied ? '#4ade80' : 'var(--tt-border-strong)'}`,
+          color: copied ? '#4ade80' : 'var(--tt-text-faint)',
+          fontFamily: 'monospace', fontSize: 10, cursor: 'pointer', outline: 'none',
+        }}
+      >
+        {copied ? '✓' : 'Copy'}
+      </button>
+    </div>
+  );
+}
+
 function PublishModal({
   initial, onConfirm, onCancel,
 }: { initial: string; onConfirm: (name: string) => void; onCancel: () => void }) {
@@ -720,15 +757,13 @@ export default function StudyEditorPage({
       if (user) {
         setSaving(true);
         setSaveError(null);
-        const token = crypto.randomUUID();
         const result = await savePost(
           { title, topic, summary, chapters, is_public: isPublic },
-          user.id, undefined, displayName || null, token,
+          user.id, undefined, displayName || null,
         );
         setSaving(false);
         if ('error' in result) { setSaveError(result.error); return; }
-        addOwnedPostId(result.id);
-        setPublishedInfo({ id: result.id, token });
+        router.push(`/study/${result.id}`);
         return;
       }
       // Anonymous: show modal to collect author name
@@ -994,6 +1029,8 @@ export default function StudyEditorPage({
 
         {/* Save */}
         <div style={{ padding: '10px 12px', borderTop: '1px solid var(--tt-border)', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {/* URL copy strip — only for existing posts */}
+          {postId && <StudyUrlCopy postId={postId} />}
           {saveError && <div style={{ fontSize: 10, color: '#f87171', lineHeight: 1.4 }}>{saveError}</div>}
           <button
             onClick={handleSave}
