@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePost, useVote, TOPICS, isOwnedPost, type Chapter, type TextBlock } from './useStudy';
+import { supabase } from '../app/utils/supabaseClient';
 import { useAuth } from './useAuth';
 import BlockGame from './BlockGame';
 
@@ -403,9 +404,41 @@ function getAnonId(): string {
   } catch { return 'anon'; }
 }
 
+function AdminModerationBar({ postId, currentStatus }: { postId: string; currentStatus: string }) {
+  const [status, setStatus] = useState(currentStatus);
+  const [busy, setBusy] = useState(false);
+
+  const setPostStatus = async (next: 'published' | 'rejected') => {
+    setBusy(true);
+    await supabase.from('study_posts').update({ status: next }).eq('id', postId);
+    setStatus(next);
+    setBusy(false);
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+      <span style={{ fontSize: 9, color: status === 'rejected' ? '#f87171' : '#fbbf24', letterSpacing: 0.5, textTransform: 'uppercase' }}>
+        {status}
+      </span>
+      {status !== 'published' && (
+        <button disabled={busy} onClick={() => setPostStatus('published')}
+          style={{ fontSize: 9, padding: '2px 6px', borderRadius: 3, border: '1px solid #4ade80', background: 'rgba(74,222,128,0.1)', color: '#4ade80', cursor: 'pointer', fontFamily: 'monospace' }}>
+          Approve
+        </button>
+      )}
+      {status !== 'rejected' && (
+        <button disabled={busy} onClick={() => setPostStatus('rejected')}
+          style={{ fontSize: 9, padding: '2px 6px', borderRadius: 3, border: '1px solid #f87171', background: 'rgba(248,113,113,0.1)', color: '#f87171', cursor: 'pointer', fontFamily: 'monospace' }}>
+          Reject
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function StudyPostPage({ id }: { id: string }) {
   const { post, loading, error } = usePost(id);
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [activeIdx, setActiveIdx] = useState(0);
   const [voteCount, setVoteCount] = useState(0);
   const [anonId, setAnonId] = useState<string | null>(null);
@@ -414,10 +447,10 @@ export default function StudyPostPage({ id }: { id: string }) {
   useEffect(() => { setAnonId(getAnonId()); }, []);
   useEffect(() => {
     if (!id) return;
-    // Auth ownership takes priority; fall back to localStorage token for guests
+    if (isAdmin) { setCanEdit(true); return; }
     if (user && post && user.id === post.author_id) { setCanEdit(true); return; }
     setCanEdit(isOwnedPost(id));
-  }, [id, user, post]);
+  }, [id, user, post, isAdmin]);
 
   const { voted, toggle: toggleVote } = useVote(id, anonId);
 
@@ -480,11 +513,16 @@ export default function StudyPostPage({ id }: { id: string }) {
             <Link href="/study" style={{ fontSize: 10, color: 'var(--tt-text-faint)', textDecoration: 'none', letterSpacing: 0.5 }}>
               ← All studies
             </Link>
-            {canEdit && (
-              <Link href={`/study/${post.id}/edit`} style={{ fontSize: 10, color: 'var(--tt-text-faint)', textDecoration: 'none', letterSpacing: 0.5, padding: '2px 7px', borderRadius: 4, border: '1px solid var(--tt-border)' }}>
-                Edit
-              </Link>
-            )}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              {isAdmin && post.status !== 'published' && (
+                <AdminModerationBar postId={post.id} currentStatus={post.status ?? 'pending'} />
+              )}
+              {canEdit && (
+                <Link href={`/study/${post.id}/edit`} style={{ fontSize: 10, color: 'var(--tt-text-faint)', textDecoration: 'none', letterSpacing: 0.5, padding: '2px 7px', borderRadius: 4, border: '1px solid var(--tt-border)' }}>
+                  Edit
+                </Link>
+              )}
+            </div>
           </div>
 
           {/* Topic badge */}

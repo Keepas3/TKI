@@ -8,7 +8,7 @@ import { supabase } from '../app/utils/supabaseClient';
 // ---------------------------------------------------------------------------
 
 export type Topic = 'opening' | '40l' | 'pc' | 'blitz' | 'combo' | 'general';
-export type ViewType = 'all' | 'topic';
+export type ViewType = 'all' | 'topic' | 'pending';
 export type SortOrder = 'hot' | 'new';
 export type BoardType = 'single' | '2v2' | 'coop';
 
@@ -62,6 +62,7 @@ export interface StudyPost {
   chapters: string[];  // denormalized chapter titles for card previews
   is_public: boolean;
   vote_count: number;
+  status: string;
   created_at: string;
 }
 
@@ -103,7 +104,7 @@ export function extractChapterTitles(chapters: Chapter[]): string[] {
 // ---------------------------------------------------------------------------
 
 const LIST_SELECT = 'id, author_id, author_username, title, topic, summary, chapters, is_public, vote_count, created_at';
-const POST_SELECT = 'id, author_id, author_username, title, topic, summary, content, chapters, is_public, vote_count, created_at';
+const POST_SELECT = 'id, author_id, author_username, title, topic, summary, content, chapters, is_public, vote_count, status, created_at';
 
 interface UsePostsOptions {
   view: ViewType;
@@ -123,7 +124,9 @@ export function usePosts({ view, topic, search, sort = 'hot' }: UsePostsOptions)
     setError(null);
 
     (async () => {
-      let q = supabase.from('study_posts').select(LIST_SELECT).eq('is_public', true);
+      let q = view === 'pending'
+        ? supabase.from('study_posts').select(LIST_SELECT).eq('status', 'pending')
+        : supabase.from('study_posts').select(LIST_SELECT).eq('is_public', true).eq('status', 'published');
       if (view === 'topic' && topic) q = q.eq('topic', topic);
       if (search?.trim()) q = q.ilike('title', `%${search.trim()}%`);
       q = q.order(sort === 'hot' ? 'vote_count' : 'created_at', { ascending: false }).limit(80);
@@ -153,6 +156,7 @@ function normalise(rows: unknown[]): StudyPost[] {
     chapters: (row.chapters as string[] | null) ?? [],
     is_public: (row.is_public as boolean) ?? true,
     vote_count: row.vote_count as number,
+    status: (row.status as string | undefined) ?? 'published',
     created_at: row.created_at as string,
   }));
 }
@@ -191,6 +195,7 @@ export function usePost(id: string) {
         chapters: (row.chapters as string[]) ?? [],
         is_public: (row.is_public as boolean) ?? true,
         vote_count: row.vote_count as number,
+        status: (row.status as string | undefined) ?? 'published',
         created_at: row.created_at as string,
       });
       setLoading(false);

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { usePosts, TOPICS, type Topic, type ViewType, type SortOrder, type StudyPost } from './useStudy';
+import { useAuth } from './useAuth';
 import { topicColor, topicLabel, timeAgo, StudyIcon } from './studyUtils';
 
 // ---------------------------------------------------------------------------
@@ -90,7 +91,8 @@ function StudyCard({ post }: { post: StudyPost }) {
 type SidebarView =
   | { type: 'all' }
   | { type: 'topics' }
-  | { type: 'topic'; topic: Topic };
+  | { type: 'topic'; topic: Topic }
+  | { type: 'pending' };
 
 
 const SIDEBAR_LINK: React.CSSProperties = {
@@ -124,7 +126,7 @@ function SidebarItem({ label, active, onClick, indent }: { label: string; active
   );
 }
 
-function Sidebar({ active, onChange }: { active: SidebarView; onChange: (v: SidebarView) => void }) {
+function Sidebar({ active, onChange, isAdmin }: { active: SidebarView; onChange: (v: SidebarView) => void; isAdmin: boolean }) {
   const isTopics = active.type === 'topics' || active.type === 'topic';
 
   return (
@@ -134,6 +136,7 @@ function Sidebar({ active, onChange }: { active: SidebarView; onChange: (v: Side
       paddingTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.05rem',
     }}>
       <SidebarItem label="All studies"    active={active.type === 'all'}       onClick={() => onChange({ type: 'all' })} />
+      {isAdmin && <SidebarItem label="⚑ Pending review" active={active.type === 'pending'} onClick={() => onChange({ type: 'pending' })} />}
 
       <div style={{ height: '1px', backgroundColor: 'var(--tt-border)', margin: '0.4rem 0.75rem' }} />
 
@@ -248,6 +251,7 @@ function SkeletonCard() {
 export default function StudyListingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isAdmin } = useAuth();
 
   const initialTopic = searchParams.get('topic') as Topic | null;
   const [sidebarView, setSidebarView] = useState<SidebarView>(
@@ -260,7 +264,7 @@ export default function StudyListingPage() {
   const [sort, setSort] = useState<SortOrder>('hot');
 
   // Derive usePosts options from sidebar view
-  const viewType: ViewType = sidebarView.type === 'topic' ? 'topic' : 'all';
+  const viewType: ViewType = sidebarView.type === 'topic' ? 'topic' : sidebarView.type === 'pending' ? 'pending' : 'all';
   const activeTopic = sidebarView.type === 'topic' ? sidebarView.topic : null;
 
   const { posts, loading, error } = usePosts({
@@ -273,9 +277,10 @@ export default function StudyListingPage() {
   // Heading title for current view
   function viewTitle(): string {
     switch (sidebarView.type) {
-      case 'all':    return 'All studies';
-      case 'topics': return 'Topics';
-      case 'topic':  return topicLabel(sidebarView.topic);
+      case 'all':     return 'All studies';
+      case 'topics':  return 'Topics';
+      case 'topic':   return topicLabel(sidebarView.topic);
+      case 'pending': return 'Pending review';
     }
   }
 
@@ -288,7 +293,7 @@ export default function StudyListingPage() {
     <div style={{ display: 'flex', height: '100%', fontFamily: 'monospace', backgroundColor: 'var(--tt-bg)' }}>
 
       {/* ── Left sidebar ── */}
-      <Sidebar active={sidebarView} onChange={setSidebarView} />
+      <Sidebar active={sidebarView} onChange={setSidebarView} isAdmin={isAdmin} />
 
       {/* ── Main content ── */}
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
