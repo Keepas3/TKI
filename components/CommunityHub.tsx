@@ -7,6 +7,7 @@ import {
   DIFFICULTY_COLORS, PIECE_COLORS, PIECE_NAMES,
   type CommunityPuzzle, type PuzzleDifficulty,
 } from './puzzleData';
+import { useAuth } from './useAuth';
 
 function getVoterFingerprint(): string {
   const KEY = 'tki-voter-id';
@@ -182,6 +183,7 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
 }
 
 export default function CommunityHub() {
+  const { isAdmin } = useAuth();
   const [puzzles, setPuzzles] = useState<CommunityPuzzle[]>([]);
   const [loading, setLoading] = useState(true);
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
@@ -274,6 +276,18 @@ export default function CommunityHub() {
           >
             ← Curated
           </Link>
+          {isAdmin && (
+            <Link
+              href="/puzzle/review"
+              style={{
+                fontSize: 11, color: 'var(--tt-text-faint)', textDecoration: 'none',
+                fontFamily: 'monospace', padding: '5px 10px',
+                border: '1px solid var(--tt-border)', borderRadius: 20,
+              }}
+            >
+              ⚑ Review
+            </Link>
+          )}
         </div>
       </div>
 

@@ -98,6 +98,15 @@ export const PUZZLES: Puzzle[] = [
   ),
     queue: [6, 6, 2, 5, 3, 1, 7, 4, 1, 3, 4],   // J, J, O, Z, T, I, L, S, I, T, S
   },
+  {
+    id: 'easy-one',
+    name: 'Easy One',
+    category: 'opening',
+    difficulty: 'easy',
+    description: 'Easy',
+    board: makeBoard(),  // empty board,
+    queue: [1, 2, 5, 6, 7, 3, 4, 6, 1, 3],   // I, O, Z, J, L, T, S, J, I, T
+  },
 
   // ── MEDIUM ────────────────────────────────────────────────────────────────
    {
