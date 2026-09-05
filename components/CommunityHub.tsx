@@ -8,6 +8,7 @@ import {
   type CommunityPuzzle, type PuzzleDifficulty,
 } from './puzzleData';
 import { useAuth } from './useAuth';
+import { NAV_BAR_HEIGHT } from './NavBar';
 
 function getVoterFingerprint(): string {
   const KEY = 'tki-voter-id';
@@ -236,11 +237,20 @@ export default function CommunityHub() {
     });
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 24px 60px', fontFamily: 'monospace' }}>
+    <div style={{ maxWidth: 640, margin: '0 auto', padding: `${NAV_BAR_HEIGHT + 32}px 24px 60px`, fontFamily: 'monospace' }}>
 
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 6 }}>
+          <Link
+            href="/puzzle"
+            style={{
+              fontSize: 11, color: 'var(--tt-text-faint)', textDecoration: 'none',
+              fontFamily: 'monospace', letterSpacing: '0.02em',
+            }}
+          >
+            ← Curated
+          </Link>
           <h1 style={{ color: 'var(--tt-text)', fontSize: 22, fontWeight: 700, letterSpacing: '0.05em', margin: 0 }}>
             Community
           </h1>
@@ -266,15 +276,6 @@ export default function CommunityHub() {
             }}
           >
             + Create Puzzle
-          </Link>
-          <Link
-            href="/puzzle"
-            style={{
-              fontSize: 11, color: 'var(--tt-text-faint)', textDecoration: 'none',
-              fontFamily: 'monospace', padding: '5px 10px',
-            }}
-          >
-            ← Curated
           </Link>
           {isAdmin && (
             <Link
