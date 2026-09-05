@@ -241,16 +241,17 @@ export default function CommunityHub() {
 
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <Link
             href="/puzzle"
             style={{
-              fontSize: 11, color: 'var(--tt-text-faint)', textDecoration: 'none',
-              fontFamily: 'monospace', letterSpacing: '0.02em',
+              fontSize: 12, color: 'var(--tt-text-faint)', textDecoration: 'none',
+              fontFamily: 'monospace', letterSpacing: '0.02em', flexShrink: 0,
             }}
           >
             ← Curated
           </Link>
+          <span style={{ color: 'var(--tt-border)', fontSize: 16, userSelect: 'none' }}>|</span>
           <h1 style={{ color: 'var(--tt-text)', fontSize: 22, fontWeight: 700, letterSpacing: '0.05em', margin: 0 }}>
             Community
           </h1>
