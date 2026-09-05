@@ -80,15 +80,16 @@ CREATE TABLE IF NOT EXISTS study_votes (
   PRIMARY KEY (post_id, user_id)
 );
 
+-- Drop policies first so the column type change below doesn't conflict.
+DROP POLICY IF EXISTS "study_votes_read"   ON study_votes;
+DROP POLICY IF EXISTS "study_votes_insert" ON study_votes;
+DROP POLICY IF EXISTS "study_votes_delete" ON study_votes;
+
 -- If migrating from the old uuid FK version:
 ALTER TABLE study_votes DROP CONSTRAINT IF EXISTS study_votes_user_id_fkey;
 ALTER TABLE study_votes ALTER COLUMN user_id TYPE text USING user_id::text;
 
 ALTER TABLE study_votes ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "study_votes_read"   ON study_votes;
-DROP POLICY IF EXISTS "study_votes_insert" ON study_votes;
-DROP POLICY IF EXISTS "study_votes_delete" ON study_votes;
 
 CREATE POLICY "study_votes_read"   ON study_votes FOR SELECT USING (true);
 CREATE POLICY "study_votes_insert" ON study_votes FOR INSERT WITH CHECK (true);
