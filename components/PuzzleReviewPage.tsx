@@ -39,11 +39,10 @@ const DIFFICULTY_COLORS: Record<string, string> = { easy:'#4ade80', medium:'#fbb
 // Mini board preview
 // ---------------------------------------------------------------------------
 
-function BoardPreview({ board }: { board: number[][] }) {
-  const CELL = 6;
+function BoardPreview({ board, cellSize = 6 }: { board: number[][]; cellSize?: number }) {
   const PAD = 2;
-  const w = 10 * CELL + PAD * 2;
-  const h = 20 * CELL + PAD * 2;
+  const w = 10 * cellSize + PAD * 2;
+  const h = 20 * cellSize + PAD * 2;
   const COLORS: Record<number, string> = {
     1:'#38bdf8',2:'#fbbf24',3:'#a78bfa',4:'#4ade80',5:'#f87171',6:'#0ea5e9',7:'#fb923c',8:'#6b7280',
   };
@@ -53,8 +52,8 @@ function BoardPreview({ board }: { board: number[][] }) {
       {board.map((row, r) =>
         row.map((cell, c) =>
           cell ? (
-            <rect key={`${r}-${c}`} x={PAD + c * CELL} y={PAD + r * CELL}
-              width={CELL - 1} height={CELL - 1} fill={COLORS[cell] ?? '#888'} rx={0.5} />
+            <rect key={`${r}-${c}`} x={PAD + c * cellSize} y={PAD + r * cellSize}
+              width={cellSize - 1} height={cellSize - 1} fill={COLORS[cell] ?? '#888'} rx={0.5} />
           ) : null
         )
       )}
@@ -75,7 +74,7 @@ function boardToSnippet(board: number[][], queue: number[], name: string, diffic
 }
 
 // ---------------------------------------------------------------------------
-// Submission row
+// Submission type
 // ---------------------------------------------------------------------------
 
 interface Submission {
@@ -92,13 +91,14 @@ interface Submission {
   created_at: string;
 }
 
-function SubmissionCard({ sub, onUpdate, onScheduleChange }: { sub: Submission; onUpdate: () => void; onScheduleChange: () => void }) {
+// ---------------------------------------------------------------------------
+// Submission card (review tab)
+// ---------------------------------------------------------------------------
+
+function SubmissionCard({ sub, onUpdate }: { sub: Submission; onUpdate: () => void }) {
   const [note, setNote] = useState(sub.admin_note ?? '');
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [schedDate, setSchedDate] = useState('');
-  const [schedBusy, setSchedBusy] = useState(false);
-  const [schedDone, setSchedDone] = useState('');
 
   const act = async (status: 'approved' | 'rejected') => {
     setBusy(true);
@@ -107,32 +107,12 @@ function SubmissionCard({ sub, onUpdate, onScheduleChange }: { sub: Submission; 
     onUpdate();
   };
 
-  const scheduleAsDaily = async () => {
-    if (!schedDate) return;
-    setSchedBusy(true);
-    await setScheduleDate(schedDate, sub.id);
-    setSchedBusy(false);
-    setSchedDone(schedDate);
-    setSchedDate('');
-    onScheduleChange();
-  };
-
   const snippet = boardToSnippet(sub.board, sub.queue, sub.name, sub.difficulty, sub.category, sub.description ?? '');
-
-  const copySnippet = () => {
-    navigator.clipboard.writeText(snippet);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
+  const copySnippet = () => { navigator.clipboard.writeText(snippet); setCopied(true); setTimeout(() => setCopied(false), 2000); };
   const statusColor = sub.status === 'approved' ? '#4ade80' : sub.status === 'rejected' ? '#f87171' : '#fbbf24';
 
   return (
-    <div style={{
-      background: 'var(--tt-surface)', border: '1px solid var(--tt-border)',
-      borderRadius: 8, padding: 16, display: 'flex', flexDirection: 'column', gap: 12,
-    }}>
-      {/* Header */}
+    <div style={{ background: 'var(--tt-surface)', border: '1px solid var(--tt-border)', borderRadius: 8, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <BoardPreview board={sub.board} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -162,7 +142,6 @@ function SubmissionCard({ sub, onUpdate, onScheduleChange }: { sub: Submission; 
         </div>
       </div>
 
-      {/* Snippet */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
           <span style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tt-text-faint)' }}>puzzleData.ts snippet</span>
@@ -175,13 +154,11 @@ function SubmissionCard({ sub, onUpdate, onScheduleChange }: { sub: Submission; 
         </pre>
       </div>
 
-      {/* Admin actions */}
       {sub.status === 'pending' && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
           <input
-            value={note}
-            onChange={e => setNote(e.target.value)}
-            placeholder="Admin note (optional, sent to submitter)"
+            value={note} onChange={e => setNote(e.target.value)}
+            placeholder="Admin note (optional)"
             style={{ flex: 1, background: 'var(--tt-surface)', border: '1px solid var(--tt-border)', borderRadius: 5, padding: '6px 10px', color: 'var(--tt-text)', fontFamily: 'monospace', fontSize: 11 }}
           />
           <button onClick={() => act('approved')} disabled={busy}
@@ -194,32 +171,72 @@ function SubmissionCard({ sub, onUpdate, onScheduleChange }: { sub: Submission; 
           </button>
         </div>
       )}
-
-      {/* Schedule as daily */}
-      {sub.status === 'approved' && (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', borderTop: '1px solid var(--tt-border)', paddingTop: 10 }}>
-          <span style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tt-text-faint)', flexShrink: 0 }}>Schedule as daily</span>
-          <input
-            type="date"
-            value={schedDate}
-            onChange={e => setSchedDate(e.target.value)}
-            min={new Date().toISOString().slice(0, 10)}
-            style={{ background: 'var(--tt-surface)', border: '1px solid var(--tt-border)', borderRadius: 4, padding: '3px 8px', color: 'var(--tt-text)', fontFamily: 'monospace', fontSize: 11, colorScheme: 'dark' }}
-          />
-          <button onClick={scheduleAsDaily} disabled={!schedDate || schedBusy}
-            style={{ padding: '4px 12px', borderRadius: 4, background: schedDate ? 'rgba(79,209,255,0.12)' : 'var(--tt-surface)', border: `1px solid ${schedDate ? 'rgba(79,209,255,0.35)' : 'var(--tt-border)'}`, color: schedDate ? 'var(--tt-accent)' : 'var(--tt-text-faint)', fontFamily: 'monospace', fontSize: 11, cursor: schedDate ? 'pointer' : 'default' }}>
-            Set
-          </button>
-          {schedDone && <span style={{ fontSize: 10, color: '#4ade80' }}>✓ Scheduled for {schedDone}</span>}
-        </div>
-      )}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Page
+// Queue card (queue tab — approved puzzles with schedule-as-daily)
 // ---------------------------------------------------------------------------
+
+function QueueCard({ sub, onScheduleChange }: { sub: Submission; onScheduleChange: () => void }) {
+  const [schedDate, setSchedDate] = useState('');
+  const [schedBusy, setSchedBusy] = useState(false);
+  const [schedDone, setSchedDone] = useState('');
+
+  const scheduleAsDaily = async () => {
+    if (!schedDate) return;
+    setSchedBusy(true);
+    await setScheduleDate(schedDate, sub.id);
+    setSchedBusy(false);
+    setSchedDone(schedDate);
+    setSchedDate('');
+    onScheduleChange();
+  };
+
+  return (
+    <div style={{ background: 'var(--tt-surface)', border: '1px solid var(--tt-border)', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'center', gap: 14 }}>
+      <BoardPreview board={sub.board} cellSize={4} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+          <span style={{ color: 'var(--tt-text)', fontSize: 13, fontWeight: 600 }}>{sub.name}</span>
+          <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: `${DIFFICULTY_COLORS[sub.difficulty]}22`, color: DIFFICULTY_COLORS[sub.difficulty], border: `1px solid ${DIFFICULTY_COLORS[sub.difficulty]}55` }}>
+            {sub.difficulty}
+          </span>
+          <Link href={`/puzzle/${sub.id}`} target="_blank" style={{ fontSize: 10, padding: '1px 8px', borderRadius: 4, background: 'var(--tt-surface-hover)', border: '1px solid var(--tt-border)', color: 'var(--tt-accent)', textDecoration: 'none' }}>
+            Play →
+          </Link>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--tt-text-muted)', marginBottom: 6 }}>
+          by {sub.author_username ?? 'anonymous'} · {sub.category}
+        </div>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {sub.queue.map((t, i) => (
+            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: 3, background: PIECE_COLORS[t] ?? '#888', color: '#000', fontSize: 9, fontWeight: 700 }}>
+              {PIECE_NAMES[t]}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end', flexShrink: 0 }}>
+        <div style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tt-text-faint)' }}>Make Daily</div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <input
+            type="date" value={schedDate} onChange={e => setSchedDate(e.target.value)}
+            min={new Date().toISOString().slice(0, 10)}
+            style={{ background: 'var(--tt-surface)', border: '1px solid var(--tt-border)', borderRadius: 4, padding: '4px 8px', color: 'var(--tt-text)', fontFamily: 'monospace', fontSize: 11, colorScheme: 'dark' }}
+          />
+          <button onClick={scheduleAsDaily} disabled={!schedDate || schedBusy}
+            style={{ padding: '4px 12px', borderRadius: 4, background: schedDate ? 'rgba(79,209,255,0.12)' : 'var(--tt-surface)', border: `1px solid ${schedDate ? 'rgba(79,209,255,0.35)' : 'var(--tt-border)'}`, color: schedDate ? 'var(--tt-accent)' : 'var(--tt-text-faint)', fontFamily: 'monospace', fontSize: 11, cursor: schedDate ? 'pointer' : 'default' }}>
+            Set
+          </button>
+        </div>
+        {schedDone && <span style={{ fontSize: 10, color: '#4ade80' }}>✓ Scheduled for {schedDone}</span>}
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Schedule Manager panel
@@ -227,25 +244,18 @@ function SubmissionCard({ sub, onUpdate, onScheduleChange }: { sub: Submission; 
 
 function ScheduleManager({ subs, onChange }: { subs: Submission[]; onChange: () => void }) {
   const [schedule, setSchedule] = useState<ScheduleRow[]>([]);
-  const [loadingSchedule, setLoadingSchedule] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   const reload = () => {
-    setLoadingSchedule(true);
-    loadSchedule().then(rows => { setSchedule(rows); setLoadingSchedule(false); });
+    setLoading(true);
+    loadSchedule().then(rows => { setSchedule(rows); setLoading(false); });
   };
 
   useEffect(() => { reload(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const nameFor = (puzzleId: string) => {
-    const sub = subs.find(s => s.id === puzzleId);
-    return sub?.name ?? puzzleId;
-  };
+  const nameFor = (puzzleId: string) => subs.find(s => s.id === puzzleId)?.name ?? puzzleId;
 
-  const remove = async (date: string) => {
-    await removeScheduleDate(date);
-    reload();
-    onChange();
-  };
+  const remove = async (date: string) => { await removeScheduleDate(date); reload(); onChange(); };
 
   return (
     <div style={{ background: 'var(--tt-surface)', border: '1px solid var(--tt-border)', borderRadius: 8, padding: 16, marginBottom: 28 }}>
@@ -254,10 +264,10 @@ function ScheduleManager({ subs, onChange }: { subs: Submission[]; onChange: () 
         <span style={{ fontSize: 10, color: 'var(--tt-text-faint)' }}>next 14 days</span>
         <button onClick={reload} style={{ marginLeft: 'auto', padding: '2px 8px', borderRadius: 4, background: 'var(--tt-surface-hover)', border: '1px solid var(--tt-border)', color: 'var(--tt-text-muted)', fontFamily: 'monospace', fontSize: 10, cursor: 'pointer' }}>↻</button>
       </div>
-      {loadingSchedule ? (
+      {loading ? (
         <p style={{ fontSize: 11, color: 'var(--tt-text-faint)', margin: 0 }}>Loading…</p>
       ) : schedule.length === 0 ? (
-        <p style={{ fontSize: 11, color: 'var(--tt-text-faint)', margin: 0 }}>No puzzles scheduled — approve a submission and set a date.</p>
+        <p style={{ fontSize: 11, color: 'var(--tt-text-faint)', margin: 0 }}>No puzzles scheduled — pick a puzzle below and set a date.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {schedule.map(row => (
@@ -278,32 +288,47 @@ function ScheduleManager({ subs, onChange }: { subs: Submission[]; onChange: () 
 // Page
 // ---------------------------------------------------------------------------
 
+type ReviewTab = 'submissions' | 'queue';
+type StatusFilter = 'pending' | 'approved' | 'rejected' | 'all';
+
+const TAB_BTN = (active: boolean): React.CSSProperties => ({
+  padding: '7px 18px', borderRadius: 6, fontFamily: 'monospace', fontSize: 12, cursor: 'pointer',
+  background: active ? 'var(--tt-surface-hover)' : 'transparent',
+  border: active ? '1px solid var(--tt-border-strong)' : '1px solid transparent',
+  color: active ? 'var(--tt-text)' : 'var(--tt-text-muted)',
+  fontWeight: active ? 700 : 400,
+});
+
 export default function PuzzleReviewPage() {
   const [subs, setSubs] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
+  const [activeTab, setActiveTab] = useState<ReviewTab>('submissions');
+  const [filter, setFilter] = useState<StatusFilter>('pending');
   const [scheduleKey, setScheduleKey] = useState(0);
 
   useEffect(() => { load(); }, []);
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('puzzle_submissions')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { data } = await supabase.from('puzzle_submissions').select('*').order('created_at', { ascending: false });
     setSubs((data as Submission[]) ?? []);
     setLoading(false);
   };
 
+  const approvedSubs = subs.filter(s => s.status === 'approved');
   const filtered = filter === 'all' ? subs : subs.filter(s => s.status === filter);
-  const counts = { pending: subs.filter(s => s.status === 'pending').length, approved: subs.filter(s => s.status === 'approved').length, rejected: subs.filter(s => s.status === 'rejected').length };
+  const counts = {
+    pending: subs.filter(s => s.status === 'pending').length,
+    approved: subs.filter(s => s.status === 'approved').length,
+    rejected: subs.filter(s => s.status === 'rejected').length,
+  };
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', fontFamily: 'monospace', color: 'var(--tt-text)' }}>
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '32px 24px 60px' }}>
+
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
           <Link href="/puzzle" style={{ color: 'var(--tt-text-faint)', textDecoration: 'none', fontSize: 12 }}>← Puzzles</Link>
           <span style={{ color: 'var(--tt-text-dim)' }}>|</span>
           <h1 style={{ color: 'var(--tt-text)', fontSize: 18, fontWeight: 700, margin: 0 }}>Puzzle Review</h1>
@@ -314,36 +339,64 @@ export default function PuzzleReviewPage() {
           )}
         </div>
 
-        {/* Schedule manager */}
-        <ScheduleManager key={scheduleKey} subs={subs} onChange={() => setScheduleKey(k => k + 1)} />
-
-        {/* Filter tabs */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-          {(['pending','approved','rejected','all'] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              style={{
-                padding: '5px 12px', borderRadius: 5, fontFamily: 'monospace', fontSize: 11, cursor: 'pointer',
-                background: filter === f ? 'var(--tt-surface-hover)' : 'var(--tt-surface)',
-                border: filter === f ? '1px solid var(--tt-border-strong)' : '1px solid var(--tt-border)',
-                color: filter === f ? 'var(--tt-text)' : 'var(--tt-text-muted)',
-              }}>
-              {f} {f !== 'all' ? `(${counts[f as keyof typeof counts]})` : `(${subs.length})`}
-            </button>
-          ))}
-          <button onClick={load} style={{ marginLeft: 'auto', padding: '5px 12px', borderRadius: 5, fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', background: 'var(--tt-surface)', border: '1px solid var(--tt-border)', color: 'var(--tt-text-muted)' }}>
-            ↻ Refresh
+        {/* Tab bar */}
+        <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--tt-border)', marginBottom: 24, paddingBottom: 0 }}>
+          <button onClick={() => setActiveTab('submissions')} style={{ ...TAB_BTN(activeTab === 'submissions'), borderBottom: activeTab === 'submissions' ? '2px solid var(--tt-accent)' : '2px solid transparent', borderRadius: '6px 6px 0 0' }}>
+            Submissions
+            {counts.pending > 0 && activeTab !== 'submissions' && (
+              <span style={{ marginLeft: 6, background: 'rgba(251,191,36,0.2)', color: '#fbbf24', borderRadius: 8, padding: '0 5px', fontSize: 10 }}>{counts.pending}</span>
+            )}
+          </button>
+          <button onClick={() => setActiveTab('queue')} style={{ ...TAB_BTN(activeTab === 'queue'), borderBottom: activeTab === 'queue' ? '2px solid var(--tt-accent)' : '2px solid transparent', borderRadius: '6px 6px 0 0' }}>
+            Queue
+            <span style={{ marginLeft: 6, color: 'var(--tt-text-dim)', fontSize: 10 }}>{counts.approved}</span>
           </button>
         </div>
 
-        {loading ? (
-          <p style={{ color: 'var(--tt-text-faint)', fontSize: 12 }}>Loading…</p>
-        ) : filtered.length === 0 ? (
-          <p style={{ color: 'var(--tt-text-faint)', fontSize: 12 }}>No {filter === 'all' ? '' : filter} submissions.</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {filtered.map(sub => <SubmissionCard key={sub.id} sub={sub} onUpdate={load} onScheduleChange={() => setScheduleKey(k => k + 1)} />)}
-          </div>
+        {/* ── Submissions tab ── */}
+        {activeTab === 'submissions' && (
+          <>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+              {(['pending','approved','rejected','all'] as const).map(f => (
+                <button key={f} onClick={() => setFilter(f)}
+                  style={{ padding: '5px 12px', borderRadius: 5, fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', background: filter === f ? 'var(--tt-surface-hover)' : 'var(--tt-surface)', border: filter === f ? '1px solid var(--tt-border-strong)' : '1px solid var(--tt-border)', color: filter === f ? 'var(--tt-text)' : 'var(--tt-text-muted)' }}>
+                  {f} {f !== 'all' ? `(${counts[f as keyof typeof counts]})` : `(${subs.length})`}
+                </button>
+              ))}
+              <button onClick={load} style={{ marginLeft: 'auto', padding: '5px 12px', borderRadius: 5, fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', background: 'var(--tt-surface)', border: '1px solid var(--tt-border)', color: 'var(--tt-text-muted)' }}>
+                ↻ Refresh
+              </button>
+            </div>
+            {loading ? (
+              <p style={{ color: 'var(--tt-text-faint)', fontSize: 12 }}>Loading…</p>
+            ) : filtered.length === 0 ? (
+              <p style={{ color: 'var(--tt-text-faint)', fontSize: 12 }}>No {filter === 'all' ? '' : filter} submissions.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {filtered.map(sub => <SubmissionCard key={sub.id} sub={sub} onUpdate={load} />)}
+              </div>
+            )}
+          </>
         )}
+
+        {/* ── Queue tab ── */}
+        {activeTab === 'queue' && (
+          <>
+            <ScheduleManager key={scheduleKey} subs={approvedSubs} onChange={() => setScheduleKey(k => k + 1)} />
+            {loading ? (
+              <p style={{ color: 'var(--tt-text-faint)', fontSize: 12 }}>Loading…</p>
+            ) : approvedSubs.length === 0 ? (
+              <p style={{ color: 'var(--tt-text-faint)', fontSize: 12 }}>No approved puzzles yet — approve submissions on the Submissions tab first.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {approvedSubs.map(sub => (
+                  <QueueCard key={sub.id} sub={sub} onScheduleChange={() => setScheduleKey(k => k + 1)} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
       </div>
     </div>
   );

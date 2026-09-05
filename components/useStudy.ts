@@ -7,24 +7,22 @@ import { supabase } from '../app/utils/supabaseClient';
 // Types
 // ---------------------------------------------------------------------------
 
-export type Topic = 'opening' | '40l' | 'pc' | 'blitz' | 'combo' | 'general';
+export type Topic = 'opening' | 'timed' | 'pc' | 'multiplayer' | 'combo' | 'general';
 export type ViewType = 'all' | 'topic' | 'pending';
 export type SortOrder = 'hot' | 'new';
 export type BoardType = 'single' | '2v2' | 'coop';
 
 export const TOPICS: { id: Topic; label: string; color: string; desc: string }[] = [
-  { id: 'opening', label: 'Openings',      color: '#38bdf8', desc: 'First-piece setups & stacking patterns' },
-  { id: '40l',     label: '40 Lines',      color: '#4ade80', desc: 'Sprint strategies to clear 40 lines fast' },
-  { id: 'pc',      label: 'Perfect Clear', color: '#a78bfa', desc: 'PC setups, finishes & continuation paths' },
-  { id: 'blitz',   label: 'Blitz',         color: '#f87171', desc: 'Scoring efficiently under the clock' },
-  { id: 'combo',   label: 'Combos',        color: '#fbbf24', desc: 'Keeping chains alive & maximizing attacks' },
-  { id: 'general', label: 'General',       color: '#94a3b8', desc: 'Fundamentals, tips & everything else' },
+  { id: 'opening',     label: 'Openings',     color: '#38bdf8', desc: 'First-piece setups & stacking patterns' },
+  { id: 'timed',       label: 'Timed Modes',  color: '#f97316', desc: '40 Lines, Blitz, and other speed challenges' },
+  { id: 'pc',          label: 'Perfect Clear', color: '#a78bfa', desc: 'PC setups, finishes & continuation paths' },
+  { id: 'multiplayer', label: 'Multiplayer',  color: '#f472b6', desc: 'Midgames, garbage, cheese & board reading vs. opponents' },
+  { id: 'combo',       label: 'Combos',       color: '#fbbf24', desc: 'Keeping chains alive & maximizing attacks' },
+  { id: 'general',     label: 'General',      color: '#94a3b8', desc: 'Fundamentals, tips & everything else' },
 ];
 
 export const BOARD_TYPES: { id: BoardType; label: string; desc: string }[] = [
-  { id: 'single', label: 'Single',   desc: 'Standard 1-player board' },
-  { id: '2v2',    label: '2v2',      desc: 'Two boards side-by-side (vs)' },
-  { id: 'coop',   label: 'Co-op',    desc: 'Two boards side-by-side (shared)' },
+  { id: 'single', label: 'Single', desc: 'Standard 1-player board' },
 ];
 
 // Right-panel text content for each chapter (no board blocks — boards are chapter-level)
@@ -32,7 +30,14 @@ export type TextBlock =
   | { id: string; type: 'paragraph'; text: string }
   | { id: string; type: 'heading'; level: 2 | 3; text: string }
   | { id: string; type: 'tip'; text: string }
-  | { id: string; type: 'image'; url: string; caption: string };
+  | { id: string; type: 'image'; url: string; caption: string }
+  | { id: string; type: 'snapshot'; board: number[][]; caption: string };
+
+export interface ChapterSnapshot {
+  id: string;
+  board: number[][];
+  caption: string;
+}
 
 export interface Chapter {
   id: string;
@@ -49,6 +54,7 @@ export interface Chapter {
   activePiece?: { type: number; x: number; y: number; matrix: number[][] } | null;
   activePiece2?: { type: number; x: number; y: number; matrix: number[][] } | null;
   blocks: TextBlock[];         // right-panel commentary
+  snapshots?: ChapterSnapshot[]; // inline board captures in the right panel
 }
 
 export interface StudyPost {
@@ -81,6 +87,7 @@ export function newTextBlock(type: TextBlock['type']): TextBlock {
     case 'heading':   return { id, type, level: 2, text: '' };
     case 'tip':       return { id, type, text: '' };
     case 'image':     return { id, type, url: '', caption: '' };
+    case 'snapshot':  return { id, type, board: emptyGrid(), caption: '' };
   }
 }
 
@@ -258,11 +265,10 @@ export function isOwnedPost(id: string): boolean {
   try { return getOwnedPostIds().includes(id); } catch { return false; }
 }
 
-// Fetch the stored edit token for a post (used by the edit page to verify URL tokens).
-export async function fetchEditToken(postId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from('study_posts').select('edit_token').eq('id', postId).single();
-  return (data as { edit_token: string | null } | null)?.edit_token ?? null;
+// Verify an edit token server-side via RPC — never returns the raw token to the client.
+export async function verifyEditToken(postId: string, token: string): Promise<boolean> {
+  const { data } = await supabase.rpc('verify_edit_token', { post_id: postId, token });
+  return data === true;
 }
 
 // ---------------------------------------------------------------------------

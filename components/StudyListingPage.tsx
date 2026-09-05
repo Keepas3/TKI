@@ -350,19 +350,26 @@ export default function StudyListingPage() {
             )}
           </form>
 
-          {/* Sort dropdown */}
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SortOrder)}
-            style={{
-              backgroundColor: 'var(--tt-border)', border: '1px solid var(--tt-border-strong)',
-              borderRadius: '6px', color: 'var(--tt-text-muted)', fontFamily: 'monospace',
-              fontSize: '0.8rem', padding: '0.5rem 0.75rem', outline: 'none', cursor: 'pointer',
-            }}
-          >
-            <option value="hot">Hot</option>
-            <option value="new">New</option>
-          </select>
+          {/* Sort toggle */}
+          <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--tt-border-strong)' }}>
+            {(['hot', 'new'] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setSort(s)}
+                style={{
+                  padding: '0.5rem 0.85rem',
+                  background: sort === s ? 'var(--tt-accent)' : 'var(--tt-border)',
+                  color: sort === s ? '#000' : 'var(--tt-text)',
+                  fontFamily: 'monospace', fontSize: '0.8rem',
+                  border: 'none', cursor: 'pointer',
+                  fontWeight: sort === s ? 700 : 400,
+                  textTransform: 'capitalize',
+                }}
+              >
+                {s === 'hot' ? 'Hot' : 'New'}
+              </button>
+            ))}
+          </div>
 
           {/* New study button */}
           <button

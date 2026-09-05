@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePosts, TOPICS, type StudyPost } from './useStudy';
-import { topicColor, topicLabel, timeAgo } from './studyUtils';
+import { topicColor, topicLabel, timeAgo, StudyIcon } from './studyUtils';
 
 // ---------------------------------------------------------------------------
 // Topic grid
@@ -34,7 +34,8 @@ export function HomeTopicGrid() {
             e.currentTarget.style.borderColor = 'var(--tt-border)';
           }}
         >
-          <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--tt-text)' }}>{t.label}</span>
+          <StudyIcon topic={t.id} size={32} />
+          <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--tt-text)', marginTop: '0.4rem' }}>{t.label}</span>
           <span style={{ fontSize: '0.7rem', color: 'var(--tt-text-faint)', lineHeight: 1.45 }}>{t.desc}</span>
           <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: 'var(--tt-text-faint)', marginTop: '0.2rem' }}>Browse →</span>
         </Link>

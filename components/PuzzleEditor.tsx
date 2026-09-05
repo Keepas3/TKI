@@ -4,12 +4,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import BlockGame from './BlockGame';
-import { type PuzzleDifficulty, type PuzzleCategory, setDailyPuzzle } from './puzzleData';
+import { type PuzzleDifficulty, type PuzzleCategory } from './puzzleData';
 import { supabase } from '../app/utils/supabaseClient';
 import { useAuth } from './useAuth';
 
-const DRAFTS_KEY = 'puzzle-editor-drafts';
-const DAILY_KEY = 'puzzle-daily-id';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -66,22 +64,6 @@ function PieceBadge({ type }: { type: number }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// boardToMakeBoard helper
-// ---------------------------------------------------------------------------
-
-function boardToMakeBoard(board: number[][]): string {
-  let firstNonEmpty = -1;
-  for (let r = 0; r < board.length; r++) {
-    if (board[r].some(c => c !== 0)) { firstNonEmpty = r; break; }
-  }
-  if (firstNonEmpty === -1) return 'makeBoard()  // empty board';
-  const rows = board.slice(firstNonEmpty).map(row => {
-    const cells = row.map(v => v === 0 ? '_' : String(v)).join(',');
-    return `    [${cells}],`;
-  });
-  return `makeBoard(  // 1=I 2=O 3=T 4=S 5=Z 6=J 7=L\n${rows.join('\n')}\n  )`;
-}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -177,18 +159,6 @@ export default function PuzzleEditor() {
   const [difficulty, setDifficulty] = useState<PuzzleDifficulty>('easy');
   const [category, setCategory] = useState<PuzzleCategory>('finisher');
   const [description, setDescription] = useState('');
-  type Draft = CapturedPuzzle & { name: string; difficulty: PuzzleDifficulty; category: PuzzleCategory; description: string };
-  const [savedSnippets, setSavedSnippets] = useState<Draft[]>([]);
-  const [dailyId, setDailyId] = useState<string | null>(null);
-
-  // Load persisted drafts + current daily override on mount.
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(DRAFTS_KEY);
-      if (raw) setSavedSnippets(JSON.parse(raw));
-    } catch { /* ignore */ }
-    setDailyId(localStorage.getItem(DAILY_KEY));
-  }, []);
 
   // Freeze: snapshot the board at this exact moment. liveStateRef.board is
   // always the static board WITHOUT the active piece (TetrisGame never writes
@@ -328,30 +298,24 @@ export default function PuzzleEditor() {
     setGameKey(k => k + 1);
   }, []);
 
-  const handleSave = useCallback(() => {
-    if (!captured) return;
-    setSavedSnippets(prev => {
-      const next = [...prev, { ...captured, name: name || 'New Puzzle', difficulty, category, description }];
-      try { localStorage.setItem(DRAFTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-      return next;
-    });
-  }, [captured, name, difficulty, category, description]);
-
-  const handleDelete = useCallback((i: number) => {
-    setSavedSnippets(prev => {
-      const next = prev.filter((_, idx) => idx !== i);
-      try { localStorage.setItem(DRAFTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-      return next;
-    });
-  }, []);
-
-  const handleSetDaily = useCallback((id: string | null) => {
-    setDailyPuzzle(id);
-    setDailyId(id);
-  }, []);
-
   const { user, displayName } = useAuth();
   const [submitState, setSubmitState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+
+  interface MySubmission { id: string; name: string; difficulty: string; status: string; board: number[][]; queue: number[]; }
+  const [mySubmissions, setMySubmissions] = useState<MySubmission[]>([]);
+
+  const loadMySubmissions = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('puzzle_submissions')
+      .select('id, name, difficulty, status, board, queue')
+      .eq('author_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(30);
+    setMySubmissions((data as MySubmission[]) ?? []);
+  }, [user]);
+
+  useEffect(() => { loadMySubmissions(); }, [loadMySubmissions]);
 
   const handleSubmit = useCallback(async () => {
     if (!captured) return;
@@ -368,7 +332,8 @@ export default function PuzzleEditor() {
     });
     if (error) console.error('[puzzle submit]', error.message);
     setSubmitState(error ? 'error' : 'done');
-  }, [captured, name, difficulty, category, description, displayName, user]);
+    if (!error) loadMySubmissions();
+  }, [captured, name, difficulty, category, description, displayName, user, loadMySubmissions]);
 
   return (
     <div style={{
@@ -604,78 +569,43 @@ export default function PuzzleEditor() {
           )}
         </div>
 
-        {/* Saved list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 14px 14px' }}>
-          {savedSnippets.length === 0 ? (
-            <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', margin: '12px 0 0' }}>
-              No puzzles saved yet.<br />Capture a PC and save it.
-            </p>
-          ) : (
-            <>
-              <div style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', margin: '12px 0 6px' }}>
-                Saved ({savedSnippets.length})
-              </div>
-              {savedSnippets.map((s, i) => {
-                const id = s.name.toLowerCase().replace(/\s+/g, '-');
-                const isDaily = dailyId === id;
+        {/* My Submissions */}
+        {user && (
+          <div style={{ flex: 1, overflowY: 'auto', padding: '0 14px 14px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', margin: '10px 0 6px' }}>
+              My Submissions ({mySubmissions.length})
+            </div>
+            {mySubmissions.length === 0 ? (
+              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', margin: '4px 0 0', lineHeight: 1.5 }}>
+                No submissions yet.<br />Capture a PC and submit.
+              </p>
+            ) : (
+              mySubmissions.map((s) => {
+                const statusColor = s.status === 'approved' ? '#4ade80' : s.status === 'rejected' ? '#f87171' : '#fbbf24';
                 return (
-                  <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                      <BoardPreview board={s.board} cellSize={3} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          {s.name}
-                          {isDaily && <span style={{ fontSize: 8, background: 'var(--tt-accent)', color: '#000', borderRadius: 3, padding: '0 3px' }}>DAILY</span>}
-                        </div>
-                        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)' }}>{s.difficulty} · {s.queue.length}pc</div>
-                        <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-                          <button
-                            onClick={() => handleSetDaily(isDaily ? null : id)}
-                            style={{
-                              fontSize: 9, padding: '2px 5px', borderRadius: 3, cursor: 'pointer',
-                              background: isDaily ? 'rgba(var(--tt-accent-rgb,99,102,241),0.2)' : 'rgba(255,255,255,0.06)',
-                              border: isDaily ? '1px solid var(--tt-accent)' : '1px solid rgba(255,255,255,0.12)',
-                              color: isDaily ? 'var(--tt-accent)' : 'rgba(255,255,255,0.5)',
-                              fontFamily: 'monospace',
-                            }}
-                          >
-                            {isDaily ? '★ Daily' : '☆ Set Daily'}
-                          </button>
-                          <button
-                            onClick={() => handleDelete(i)}
-                            style={{
-                              fontSize: 9, padding: '2px 5px', borderRadius: 3, cursor: 'pointer',
-                              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
-                              color: 'rgba(255,100,100,0.7)', fontFamily: 'monospace',
-                            }}
-                          >
-                            ✕
-                          </button>
-                        </div>
+                  <div key={s.id} style={{ display: 'flex', gap: 7, alignItems: 'flex-start', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <BoardPreview board={s.board} cellSize={3} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 10, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                        <span style={{ fontSize: 8, color: statusColor, border: `1px solid ${statusColor}55`, borderRadius: 3, padding: '0 4px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                          {s.status}
+                        </span>
+                        <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)' }}>{s.difficulty}</span>
                       </div>
+                      {s.status === 'approved' && (
+                        <Link href={`/puzzle/${s.id}`} target="_blank" style={{ fontSize: 8, color: 'var(--tt-accent)', textDecoration: 'none', display: 'block', marginTop: 2 }}>
+                          Play →
+                        </Link>
+                      )}
                     </div>
                   </div>
                 );
-              })}
-              <button
-                onClick={() => {
-                  const all = savedSnippets.map(s =>
-                    `  {\n    id: '${s.name.toLowerCase().replace(/\s+/g, '-')}',\n    name: '${s.name}',\n    category: '${s.category}',\n    difficulty: '${s.difficulty}',\n    description: '${s.description}',\n    board: ${boardToMakeBoard(s.board)},\n    queue: [${s.queue.join(', ')}],\n  },`
-                  ).join('\n');
-                  navigator.clipboard.writeText(all);
-                }}
-                style={{
-                  marginTop: 10, width: '100%',
-                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'rgba(255,255,255,0.6)', borderRadius: 5, padding: '5px 0',
-                  fontFamily: 'monospace', fontSize: 10, cursor: 'pointer',
-                }}
-              >
-                Copy all {savedSnippets.length} snippets
-              </button>
-            </>
-          )}
-        </div>
+              })
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* ── Center: live game ── */}
@@ -809,13 +739,6 @@ export default function PuzzleEditor() {
                 <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Short hint for players"
                   style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 5, padding: '6px 10px', color: '#fff', fontFamily: 'monospace', fontSize: 12 }} />
               </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={handleSave}
-                style={{ flex: 1, background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.35)', color: '#4ade80', borderRadius: 6, padding: '7px 0', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer' }}>
-                Save puzzle
-              </button>
             </div>
 
             {/* Share with Community */}

@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  TOPICS, BOARD_TYPES, newChapter, newTextBlock, savePost, addOwnedPostId,
+  TOPICS, newChapter, newTextBlock, savePost, addOwnedPostId,
   type Chapter, type Topic, type BoardType, type TextBlock,
 } from './useStudy';
 import BlockGame from './BlockGame';
@@ -146,152 +146,6 @@ function PieceInsertBar({ onInsert }: { onInsert: (token: string) => void }) {
   );
 }
 
-function TextBlockEditor({
-  block, onChange, onDelete, onMoveUp, onMoveDown,
-}: {
-  block: TextBlock;
-  onChange: (b: TextBlock) => void;
-  onDelete: () => void;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
-}) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  function insertAtCursor(token: string) {
-    const el = block.type === 'heading'
-      ? inputRef.current as HTMLInputElement | HTMLTextAreaElement | null
-      : textareaRef.current;
-    if (!el) {
-      if (block.type !== 'image') onChange({ ...block, text: block.text + token });
-      return;
-    }
-    const start = el.selectionStart ?? el.value.length;
-    const end = el.selectionEnd ?? el.value.length;
-    const newText = el.value.slice(0, start) + token + el.value.slice(end);
-    if (block.type !== 'image') onChange({ ...block, text: newText });
-    setTimeout(() => {
-      el.focus();
-      el.setSelectionRange(start + token.length, start + token.length);
-    }, 0);
-  }
-
-  const baseStyle: React.CSSProperties = {
-    width: '100%', boxSizing: 'border-box', padding: '6px 8px',
-    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 4, color: 'var(--tt-text)', fontFamily: 'monospace', fontSize: 12,
-    resize: 'vertical' as const, outline: 'none',
-  };
-
-  let editor: React.ReactNode;
-  if (block.type === 'paragraph') {
-    editor = (
-      <>
-        <PieceInsertBar onInsert={insertAtCursor} />
-        <textarea
-          ref={textareaRef}
-          value={block.text}
-          onChange={(e) => onChange({ ...block, text: e.target.value })}
-          placeholder="Write your text here…"
-          rows={3}
-          style={baseStyle}
-        />
-      </>
-    );
-  } else if (block.type === 'heading') {
-    editor = (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <PieceInsertBar onInsert={insertAtCursor} />
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button
-            onClick={() => onChange({ ...block, level: block.level === 2 ? 3 : 2 })}
-            style={{
-              padding: '4px 8px', background: 'var(--tt-surface-hover)',
-              border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4,
-              color: 'var(--tt-text)', fontFamily: 'monospace', fontSize: 11,
-              cursor: 'pointer', flexShrink: 0,
-            }}
-          >
-            H{block.level}
-          </button>
-          <input
-            ref={inputRef}
-            value={block.text}
-            onChange={(e) => onChange({ ...block, text: e.target.value })}
-            placeholder="Heading text…"
-            style={{ ...baseStyle, resize: 'none' as const }}
-          />
-        </div>
-      </div>
-    );
-  } else if (block.type === 'tip') {
-    editor = (
-      <>
-        <PieceInsertBar onInsert={insertAtCursor} />
-        <textarea
-          ref={textareaRef}
-          value={block.text}
-          onChange={(e) => onChange({ ...block, text: e.target.value })}
-          placeholder="Key insight or tip…"
-          rows={2}
-          style={{
-            ...baseStyle,
-            borderLeft: '3px solid var(--tt-accent, #38bdf8)',
-            background: 'rgba(56,189,248,0.08)',
-          }}
-        />
-      </>
-    );
-  } else {
-    editor = (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <input
-          value={block.url}
-          onChange={(e) => onChange({ ...block, url: e.target.value })}
-          placeholder="Image URL…"
-          style={{ ...baseStyle, resize: 'none' as const }}
-        />
-        <input
-          value={block.caption}
-          onChange={(e) => onChange({ ...block, caption: e.target.value })}
-          placeholder="Caption (optional)…"
-          style={{ ...baseStyle, resize: 'none' as const, fontSize: 11 }}
-        />
-        {block.url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={block.url} alt={block.caption}
-            style={{ maxWidth: '100%', maxHeight: 120, objectFit: 'contain', borderRadius: 4 }}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-        )}
-      </div>
-    );
-  }
-
-  const typeLabel = block.type === 'paragraph' ? '¶'
-    : block.type === 'heading' ? `H${(block as Extract<TextBlock, { type: 'heading' }>).level}`
-    : block.type === 'tip' ? '💡'
-    : '🖼';
-
-  return (
-    <div style={{
-      display: 'flex', gap: 6, padding: '6px 0',
-      borderBottom: '1px solid rgba(255,255,255,0.05)',
-    }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center', paddingTop: 2 }}>
-        <span style={{ fontSize: 10, color: 'var(--tt-text-faint)', width: 18, textAlign: 'center' }}>
-          {typeLabel}
-        </span>
-        {onMoveUp && <button onClick={onMoveUp} style={{ ...iconBtnStyle, fontSize: 9 }} title="Move up">▲</button>}
-        {onMoveDown && <button onClick={onMoveDown} style={{ ...iconBtnStyle, fontSize: 9 }} title="Move down">▼</button>}
-        <button onClick={onDelete} style={{ ...iconBtnStyle, color: '#f87171' }} title="Delete">✕</button>
-      </div>
-      <div style={{ flex: 1 }}>{editor}</div>
-    </div>
-  );
-}
-
 // ── Markdown ↔ TextBlock[] round-trip ───────────────────────────────────────
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
@@ -299,20 +153,32 @@ function uid() { return Math.random().toString(36).slice(2, 9); }
 function blocksToMd(blocks: TextBlock[]): string {
   return blocks.map((b) => {
     switch (b.type) {
-      case 'heading': return `${'#'.repeat(b.level)} ${b.text}`;
-      case 'tip':     return b.text.split('\n').map((l) => `> ${l}`).join('\n');
-      case 'image':   return b.caption ? `![${b.url} | ${b.caption}]` : `![${b.url}]`;
+      case 'heading':  return `${'#'.repeat(b.level)} ${b.text}`;
+      case 'tip':      return b.text.split('\n').map((l) => `> ${l}`).join('\n');
+      case 'image':    return b.caption ? `![${b.url} | ${b.caption}]` : `![${b.url}]`;
+      case 'snapshot': return `{{snap:${b.id}}}`;
       case 'paragraph': return b.text;
     }
   }).join('\n\n');
 }
 
-function mdToBlocks(md: string): TextBlock[] {
+function mdToBlocks(md: string, existingBlocks: TextBlock[] = []): TextBlock[] {
+  const snapLookup = new Map(
+    existingBlocks
+      .filter((b): b is Extract<TextBlock, { type: 'snapshot' }> => b.type === 'snapshot')
+      .map((b) => [b.id, b])
+  );
   const chunks = md.split(/\n{2,}/);
   const out: TextBlock[] = [];
   for (const raw of chunks) {
     const chunk = raw.trim();
     if (!chunk) continue;
+    const snapMatch = chunk.match(/^\{\{snap:([a-z0-9]+)\}\}$/);
+    if (snapMatch) {
+      const existing = snapLookup.get(snapMatch[1]);
+      if (existing) out.push(existing);
+      continue;
+    }
     if (chunk.startsWith('### ')) {
       out.push({ id: uid(), type: 'heading', level: 3, text: chunk.slice(4) });
     } else if (chunk.startsWith('## ')) {
@@ -564,6 +430,7 @@ export default function StudyEditorPage({
   const [activeBoard, setActiveBoard] = useState<1 | 2>(1);
   const [gameKey, setGameKey] = useState(0);
   const [renamingIdx, setRenamingIdx] = useState<number | null>(null);
+  const [confirmDeleteIdx, setConfirmDeleteIdx] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showPublishModal, setShowPublishModal] = useState(false);
@@ -630,10 +497,14 @@ export default function StudyEditorPage({
     setChapters((prev) => prev.map((ch, i) => i === idx ? { ...ch, ...patch } : ch));
   }, []);
 
+  // Stable ref so applyMd can look up existing snapshot blocks without circular dep
+  const currentBlocksRef = useRef<TextBlock[]>(activeChapter.blocks);
+  currentBlocksRef.current = activeChapter.blocks;
+
   // Toolbar helpers — operate on the markdown textarea
   const applyMd = useCallback((newVal: string) => {
     setMarkdown(newVal);
-    updateChapter(safeIdx, { blocks: mdToBlocks(newVal) });
+    updateChapter(safeIdx, { blocks: mdToBlocks(newVal, currentBlocksRef.current) });
   }, [safeIdx, updateChapter]);
 
   const insertPieceToken = useCallback((token: string) => {
@@ -663,21 +534,71 @@ export default function StudyEditorPage({
     setTimeout(() => { el.focus(); const c = Math.max(lineStart, cursor + delta); el.setSelectionRange(c, c); }, 0);
   }, [applyMd]);
 
-  const insertImageTemplate = useCallback(() => {
+  const addSnapshot = useCallback(() => {
+    const live = liveStateRef.current;
+
+    // Determine the board to capture: live settled cells if the game is running,
+    // otherwise whatever is already frozen on the chapter.
+    const boardForSnap = live
+      ? live.board.map((row) => [...row])
+      : frozenBoard.map((row) => [...row]);
+
+    // If the game is running, freeze the position at the same time so the
+    // chapter's "play from here" state matches the snapshot.
+    if (live) {
+      const frozen = live.board.map((r) => [...r]);
+      const rows = frozen.length;
+      const cols = frozen[0]?.length ?? 10;
+      if (includeGhost && live.ghostY !== live.pieceY) {
+        for (let pr = 0; pr < live.pieceMatrix.length; pr++) {
+          for (let pc = 0; pc < live.pieceMatrix[pr].length; pc++) {
+            if (!live.pieceMatrix[pr][pc]) continue;
+            const r = live.ghostY + pr;
+            const c = live.pieceX + pc;
+            if (r >= 0 && r < rows && c >= 0 && c < cols && frozen[r][c] === 0)
+              frozen[r][c] = live.pieceType + 7;
+          }
+        }
+      }
+      const savedPiece: ActivePiece | null = includePiece
+        ? { type: live.pieceType, x: live.pieceX, y: live.pieceY, matrix: live.pieceMatrix.map((r) => [...r]) }
+        : null;
+      if (activeBoard === 1) {
+        updateChapter(safeIdx, { board: frozen, nextPieces: live.nextPieces, holdPiece: live.holdPiece, activePiece: savedPiece });
+      } else {
+        updateChapter(safeIdx, { board2: frozen, nextPieces2: live.nextPieces, holdPiece2: live.holdPiece, activePiece2: savedPiece });
+      }
+      setFrozenFlash(true);
+      setTimeout(() => setFrozenFlash(false), 1200);
+    }
+
+    const id = Math.random().toString(36).slice(2, 9);
+    const snap: Extract<TextBlock, { type: 'snapshot' }> = {
+      id, type: 'snapshot',
+      board: boardForSnap,
+      caption: '',
+    };
+    // Insert placeholder at cursor position in the textarea
     const el = mdTextareaRef.current;
-    if (!el) return;
-    const pos = el.selectionStart ?? el.value.length;
-    const before = el.value.slice(0, pos);
-    const after = el.value.slice(pos);
+    const pos = el ? (el.selectionStart ?? el.value.length) : markdown.length;
+    const before = markdown.slice(0, pos);
+    const after = markdown.slice(pos);
     const needsBefore = before.length > 0 && !before.endsWith('\n\n');
     const needsAfter = after.length > 0 && !after.startsWith('\n\n');
-    const tpl = '![https:// | Image caption]';
-    const insert = (needsBefore ? '\n\n' : '') + tpl + (needsAfter ? '\n\n' : '');
-    const next = before + insert + after;
-    applyMd(next);
-    const urlStart = pos + (needsBefore ? 2 : 0) + 2;
-    setTimeout(() => { el.focus(); el.setSelectionRange(urlStart, urlStart + 'https://'.length); }, 0);
-  }, [applyMd]);
+    const placeholder = `{{snap:${id}}}`;
+    const insert = (needsBefore ? '\n\n' : '') + placeholder + (needsAfter ? '\n\n' : '');
+    const newMd = before + insert + after;
+    setMarkdown(newMd);
+    updateChapter(safeIdx, {
+      blocks: mdToBlocks(newMd, [...currentBlocksRef.current, snap]),
+    });
+    setTimeout(() => {
+      if (!el) return;
+      const insertEnd = pos + insert.length;
+      el.focus();
+      el.setSelectionRange(insertEnd, insertEnd);
+    }, 0);
+  }, [frozenBoard, liveStateRef, includeGhost, includePiece, activeBoard, safeIdx, markdown, updateChapter]);
 
   const addChapter = () => {
     const idx = chapters.length;
@@ -894,53 +815,6 @@ export default function StudyEditorPage({
           </div>
         </div>
 
-        {/* Board type selector */}
-        <div style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ fontSize: 10, letterSpacing: 1.2, color: 'var(--tt-text-dim)', marginBottom: 5, textTransform: 'uppercase' }}>
-            Display mode
-          </div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {BOARD_TYPES.map((bt) => (
-              <button
-                key={bt.id}
-                onClick={() => updateChapter(safeIdx, { boardType: bt.id as BoardType })}
-                title={bt.desc}
-                style={{
-                  flex: 1, padding: '3px 0',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: 4,
-                  background: activeChapter.boardType === bt.id ? 'var(--tt-surface-hover)' : 'transparent',
-                  color: activeChapter.boardType === bt.id ? '#e2e8f0' : 'rgba(255,255,255,0.4)',
-                  fontFamily: 'monospace', fontSize: 10,
-                  cursor: 'pointer', outline: 'none',
-                }}
-              >
-                {bt.label}
-              </button>
-            ))}
-          </div>
-          {!isSingle && (
-            <div style={{ display: 'flex', gap: 4, marginTop: 5 }}>
-              {([1, 2] as const).map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setActiveBoard(n)}
-                  style={{
-                    flex: 1, padding: '3px 0', borderRadius: 4,
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    background: activeBoard === n ? 'var(--tt-surface-hover)' : 'transparent',
-                    color: activeBoard === n ? '#e2e8f0' : 'rgba(255,255,255,0.35)',
-                    fontFamily: 'monospace', fontSize: 10,
-                    cursor: 'pointer', outline: 'none',
-                  }}
-                >
-                  Board {n}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Chapter list */}
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           <div style={{
@@ -993,20 +867,34 @@ export default function StudyEditorPage({
                     {ch.title || 'Untitled'}
                   </span>
                   {safeIdx === i && (
-                    <>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setRenamingIdx(i); }}
-                        title="Rename"
-                        style={iconBtnStyle}
-                      >✎</button>
-                      {chapters.length > 1 && (
+                    confirmDeleteIdx === i ? (
+                      <>
+                        <span style={{ fontSize: 10, color: '#f87171', whiteSpace: 'nowrap' }}>Delete?</span>
                         <button
-                          onClick={(e) => { e.stopPropagation(); deleteChapter(i); }}
-                          title="Delete"
-                          style={{ ...iconBtnStyle, color: '#f87171' }}
-                        >✕</button>
-                      )}
-                    </>
+                          onClick={(e) => { e.stopPropagation(); deleteChapter(i); setConfirmDeleteIdx(null); }}
+                          style={{ ...iconBtnStyle, color: '#f87171', fontWeight: 700 }}
+                        >Yes</button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setConfirmDeleteIdx(null); }}
+                          style={iconBtnStyle}
+                        >No</button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setRenamingIdx(i); }}
+                          title="Rename"
+                          style={iconBtnStyle}
+                        >✎</button>
+                        {chapters.length > 1 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteIdx(i); }}
+                            title="Delete chapter"
+                            style={{ ...iconBtnStyle, color: '#f87171' }}
+                          >✕</button>
+                        )}
+                      </>
+                    )
                   )}
                 </>
               )}
@@ -1297,8 +1185,8 @@ export default function StudyEditorPage({
             </button>
 
             <button
-              onMouseDown={(e) => { e.preventDefault(); insertImageTemplate(); }}
-              title="Insert image"
+              onMouseDown={(e) => { e.preventDefault(); addSnapshot(); }}
+              title="Insert a board snapshot at the cursor. Automatically freezes the current position."
               style={{
                 padding: '2px 8px', borderRadius: 3,
                 border: '1px solid rgba(255,255,255,0.1)',
@@ -1308,7 +1196,7 @@ export default function StudyEditorPage({
                 cursor: 'pointer', outline: 'none',
               }}
             >
-              🖼 Image
+              📷 Snapshot
             </button>
 
             {/* Divider */}
@@ -1342,8 +1230,119 @@ export default function StudyEditorPage({
             fontSize: 9.5, color: 'var(--tt-text-dim)',
             fontFamily: 'monospace', flexShrink: 0,
           }}>
-            Enter twice = new paragraph · toolbar buttons work on current line
+            Enter twice = new paragraph · 📷 Snapshot inserts at cursor (also freezes position)
           </div>
+
+          {/* Board snapshots — caption editing + recapture */}
+          {activeChapter.blocks.some((b) => b.type === 'snapshot') && (() => {
+            const snapBlocks = activeChapter.blocks.filter(
+              (b): b is Extract<TextBlock, { type: 'snapshot' }> => b.type === 'snapshot'
+            );
+            const CELL = 4;
+            const PAD = 2;
+            const SNAP_COLORS = ['','#38bdf8','#fbbf24','#a78bfa','#4ade80','#f87171','#60a5fa','#fb923c'];
+            return (
+              <div style={{
+                borderTop: '1px solid rgba(255,255,255,0.07)',
+                padding: '8px 10px',
+                display: 'flex', flexDirection: 'column', gap: 8,
+                flexShrink: 0,
+              }}>
+                <div style={{ fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--tt-text-dim)' }}>
+                  Snapshots · move {"{{snap:ID}}"} in text to reorder
+                </div>
+                {snapBlocks.map((snap) => {
+                  // Crop: skip empty rows at top if gap ≥ 3
+                  const topRow = snap.board.findIndex((row) => row.some((v) => v !== 0));
+                  const startRow = topRow >= 3 ? Math.max(0, topRow - 2) : 0;
+                  const cropped = snap.board.slice(startRow);
+                  const rows = cropped.length;
+                  const W = 10 * CELL + PAD * 2;
+                  const H = rows * CELL + PAD * 2;
+                  return (
+                    <div key={snap.id} style={{
+                      display: 'flex', gap: 8, alignItems: 'flex-start',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.07)',
+                      borderRadius: 6, padding: 8,
+                    }}>
+                      <svg width={W} height={H} style={{ display: 'block', flexShrink: 0 }}>
+                        <rect x={0} y={0} width={W} height={H} fill="rgba(0,0,0,0.4)" rx={2} />
+                        {cropped.map((row, r) => row.map((cell, c) => cell ? (
+                          <rect
+                            key={`${r}-${c}`}
+                            x={PAD + c * CELL} y={PAD + r * CELL}
+                            width={CELL - 1} height={CELL - 1} rx={0.5}
+                            fill={SNAP_COLORS[cell] ?? '#888'}
+                          />
+                        ) : null))}
+                      </svg>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <input
+                          value={snap.caption}
+                          onChange={(e) => {
+                            const caption = e.target.value;
+                            updateChapter(safeIdx, {
+                              blocks: activeChapter.blocks.map((b) =>
+                                b.id === snap.id && b.type === 'snapshot' ? { ...b, caption } : b
+                              ),
+                            });
+                          }}
+                          placeholder="Caption (optional)…"
+                          style={{
+                            width: '100%', boxSizing: 'border-box', padding: '3px 6px',
+                            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: 3, color: 'var(--tt-text-muted)',
+                            fontFamily: 'monospace', fontSize: 11, outline: 'none',
+                          }}
+                        />
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button
+                            onClick={() => {
+                              const captured = frozenBoard.map((row) => [...row]);
+                              updateChapter(safeIdx, {
+                                blocks: activeChapter.blocks.map((b) =>
+                                  b.id === snap.id && b.type === 'snapshot' ? { ...b, board: captured } : b
+                                ),
+                              });
+                            }}
+                            title="Re-capture the current frozen board into this snapshot. Freeze the position first."
+                            style={{
+                              flex: 1, padding: '2px 0', borderRadius: 3,
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              background: 'transparent', color: 'var(--tt-text-muted)',
+                              fontFamily: 'monospace', fontSize: 9, cursor: 'pointer', outline: 'none',
+                            }}
+                          >
+                            ↺ Recapture
+                          </button>
+                          <button
+                            onClick={() => {
+                              // Remove the {{snap:ID}} placeholder from markdown too
+                              const newMd = markdown.replace(new RegExp(`\\n*\\{\\{snap:${snap.id}\\}\\}\\n*`, 'g'), '\n\n').replace(/\n{3,}/g, '\n\n').trim();
+                              setMarkdown(newMd);
+                              updateChapter(safeIdx, {
+                                blocks: mdToBlocks(newMd, activeChapter.blocks.filter((b) => b.id !== snap.id)),
+                              });
+                            }}
+                            title="Delete this snapshot"
+                            style={{
+                              padding: '2px 6px', borderRadius: 3,
+                              border: '1px solid rgba(248,113,113,0.3)',
+                              background: 'transparent', color: '#f87171',
+                              fontFamily: 'monospace', fontSize: 9, cursor: 'pointer', outline: 'none',
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

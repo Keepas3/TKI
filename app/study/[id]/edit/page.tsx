@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import StudyEditorPage from '@/components/StudyEditorPage';
-import { usePost, isOwnedPost, fetchEditToken, addOwnedPostId } from '@/components/useStudy';
+import { usePost, isOwnedPost, verifyEditToken, addOwnedPostId } from '@/components/useStudy';
 import { useAuth } from '@/components/useAuth';
 import { NAV_BAR_HEIGHT } from '@/components/NavBar';
 
@@ -30,10 +30,9 @@ function EditPageInner({ id, token }: { id: string; token?: string }) {
       if (!post) return; // still loading, keep null
     }
 
-    // Anonymous with URL token: verify against DB.
+    // Anonymous with URL token: verify server-side (token never returned to client).
     if (token) {
-      fetchEditToken(id).then((stored) => {
-        const ok = !!stored && stored === token;
+      verifyEditToken(id, token).then((ok) => {
         if (ok) addOwnedPostId(id);
         setAuthorized(ok);
       });

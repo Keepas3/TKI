@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePost, useVote, TOPICS, isOwnedPost, type Chapter, type TextBlock } from './useStudy';
+import { usePost, useVote, TOPICS, isOwnedPost, type Chapter, type TextBlock, type ChapterSnapshot } from './useStudy';
 import { supabase } from '../app/utils/supabaseClient';
 import { useAuth } from './useAuth';
 import BlockGame from './BlockGame';
@@ -160,6 +160,45 @@ function renderWithPieces(text: string): React.ReactNode {
 
 const PROSE_FONT = `'Inter', system-ui, -apple-system, sans-serif`;
 
+const SNAP_CELL_COLORS = ['','#38bdf8','#fbbf24','#a78bfa','#4ade80','#f87171','#60a5fa','#fb923c'];
+
+function cropBoard(board: number[][]): number[][] {
+  const topRow = board.findIndex((row) => row.some((v) => v !== 0));
+  if (topRow < 0) return board.slice(-4);
+  if (topRow < 3) return board;
+  return board.slice(topRow - 2);
+}
+
+function SnapshotRenderer({ board, caption }: { board: number[][]; caption: string }) {
+  const CELL = 8;
+  const PAD = 3;
+  const cropped = cropBoard(board);
+  const W = 10 * CELL + PAD * 2;
+  const H = cropped.length * CELL + PAD * 2;
+  return (
+    <div style={{ margin: '12px 0' }}>
+      <svg width={W} height={H} style={{ display: 'block' }}>
+        <rect x={0} y={0} width={W} height={H} fill="rgba(0,0,0,0.5)" rx={4} />
+        {cropped.flatMap((row, r) =>
+          row.map((cell, c) => (
+            <rect
+              key={`${r}-${c}`}
+              x={PAD + c * CELL} y={PAD + r * CELL}
+              width={CELL - 1} height={CELL - 1} rx={1}
+              fill={cell ? (SNAP_CELL_COLORS[cell] ?? '#888') : 'rgba(255,255,255,0.04)'}
+            />
+          ))
+        )}
+      </svg>
+      {caption && (
+        <div style={{ fontSize: 10, color: 'var(--tt-text-faint)', marginTop: 4 }}>
+          {caption}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BlockRenderer({ block }: { block: TextBlock }) {
   if (block.type === 'heading') {
     const isH2 = block.level === 2;
@@ -221,6 +260,9 @@ function BlockRenderer({ block }: { block: TextBlock }) {
         )}
       </div>
     );
+  }
+  if (block.type === 'snapshot') {
+    return <SnapshotRenderer board={block.board} caption={block.caption} />;
   }
   return null;
 }
@@ -702,14 +744,19 @@ export default function StudyPostPage({ id }: { id: string }) {
               </div>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
-              {activeChapter.blocks.length === 0 ? (
+              {activeChapter.blocks.length === 0 && (activeChapter.snapshots ?? []).length === 0 ? (
                 <div style={{ color: 'var(--tt-text-dim)', fontSize: 11, fontStyle: 'italic' }}>
                   No notes for this chapter.
                 </div>
               ) : (
-                activeChapter.blocks.map((block) => (
-                  <BlockRenderer key={block.id} block={block} />
-                ))
+                <>
+                  {activeChapter.blocks.map((block) => (
+                    <BlockRenderer key={block.id} block={block} />
+                  ))}
+                  {(activeChapter.snapshots ?? []).map((snap) => (
+                    <SnapshotRenderer key={snap.id} board={snap.board} caption={snap.caption} />
+                  ))}
+                </>
               )}
             </div>
           </>
