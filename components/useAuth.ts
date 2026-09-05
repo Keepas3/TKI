@@ -23,10 +23,12 @@ export function useAuth() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminChecked, setAdminChecked] = useState(false);
 
   const fetchAdmin = async (userId: string) => {
     const { data } = await supabase.from('profiles').select('is_admin').eq('id', userId).single();
     setIsAdmin(!!(data as { is_admin: boolean } | null)?.is_admin);
+    setAdminChecked(true);
   };
 
   useEffect(() => {
@@ -34,13 +36,14 @@ export function useAuth() {
       const u = data.session?.user ?? null;
       setUser(u);
       if (u) { syncProfileToTable(u); fetchAdmin(u.id); }
+      else setAdminChecked(true);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session: Session | null) => {
       const u = session?.user ?? null;
       setUser(u);
       if (event === 'PASSWORD_RECOVERY') setIsPasswordRecovery(true);
-      else if (event === 'SIGNED_OUT') { setIsPasswordRecovery(false); setIsAdmin(false); }
+      else if (event === 'SIGNED_OUT') { setIsPasswordRecovery(false); setIsAdmin(false); setAdminChecked(true); }
       else if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && u) {
         syncProfileToTable(u);
         fetchAdmin(u.id);
@@ -105,7 +108,7 @@ export function useAuth() {
   const bannerId = (user?.user_metadata?.bannerId as string | undefined) ?? DEFAULT_BANNER_ID;
 
   return {
-    user, displayName, avatarId, bannerId, isPasswordRecovery, isAdmin,
+    user, displayName, avatarId, bannerId, isPasswordRecovery, isAdmin, adminChecked,
     signUp, signIn, signOut, updateUsername, updateProfileVisuals, updatePassword, requestPasswordReset,
   };
 }
