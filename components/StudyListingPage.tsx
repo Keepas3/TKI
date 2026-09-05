@@ -20,6 +20,7 @@ const SIDEBAR_WIDTH = 190;
 // ---------------------------------------------------------------------------
 
 function StudyCard({ post }: { post: StudyPost }) {
+  const router = useRouter();
   return (
     <Link
       href={`/study/${post.id}`}
@@ -55,9 +56,12 @@ function StudyCard({ post }: { post: StudyPost }) {
             </span>
             <span>·</span>
             {post.author_id ? (
-              <Link href={`/profile/${post.author_id}`} style={{ color: 'var(--tt-text-muted)', textDecoration: 'none' }}>
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/u/${post.author_id}`); }}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--tt-text-muted)', fontFamily: 'monospace', fontSize: 'inherit' }}
+              >
                 {post.author_username ?? 'Unknown'}
-              </Link>
+              </button>
             ) : (
               <span style={{ color: 'var(--tt-text-muted)' }}>Anonymous</span>
             )}
