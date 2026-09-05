@@ -45,9 +45,11 @@ CREATE POLICY "puzzle_submissions_select" ON puzzle_submissions
 CREATE POLICY "puzzle_submissions_insert" ON puzzle_submissions
   FOR INSERT WITH CHECK (true);
 
--- Admin review (update status/admin_note) is done via the Supabase dashboard
--- or a future service-role API call. No client-side update policy needed now.
--- CREATE POLICY "puzzle_submissions_update" ON puzzle_submissions FOR UPDATE USING (true);
+-- Admin review: only admins (profiles.is_admin = true) can update status/admin_note.
+CREATE POLICY "puzzle_submissions_update" ON puzzle_submissions
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+  );
 
 -- ============================================================
 -- daily_schedule: maps a calendar date to the puzzle shown as
@@ -70,10 +72,19 @@ DROP POLICY IF EXISTS "daily_schedule_delete" ON daily_schedule;
 
 -- Anyone can read (needed for the client-side daily puzzle fetch).
 CREATE POLICY "daily_schedule_select" ON daily_schedule FOR SELECT USING (true);
--- Anon key has full write access — this is a sandbox admin-only table.
-CREATE POLICY "daily_schedule_insert" ON daily_schedule FOR INSERT WITH CHECK (true);
-CREATE POLICY "daily_schedule_update" ON daily_schedule FOR UPDATE USING (true);
-CREATE POLICY "daily_schedule_delete" ON daily_schedule FOR DELETE USING (true);
+-- Only admins can write to the daily schedule.
+CREATE POLICY "daily_schedule_insert" ON daily_schedule
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+CREATE POLICY "daily_schedule_update" ON daily_schedule
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+CREATE POLICY "daily_schedule_delete" ON daily_schedule
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+  );
 
 -- ============================================================
 -- game_scores: sprint (and formerly blitz) leaderboard.
@@ -81,28 +92,10 @@ CREATE POLICY "daily_schedule_delete" ON daily_schedule FOR DELETE USING (true);
 -- Migration: if the old tetris_scores table exists, rename it.
 -- ============================================================
 
-DO $$ BEGIN
-  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'tetris_scores')
-     AND NOT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'game_scores') THEN
-    ALTER TABLE tetris_scores RENAME TO game_scores;
-  END IF;
-END $$;
-
-CREATE TABLE IF NOT EXISTS game_scores (
-  id         bigserial   PRIMARY KEY,
-  name       text        NOT NULL,
-  score      bigint      NOT NULL,
-  level      int         NOT NULL DEFAULT 1,
-  mode       text        NOT NULL DEFAULT 'sprint',
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
-ALTER TABLE game_scores ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "game_scores_select" ON game_scores;
-DROP POLICY IF EXISTS "game_scores_insert" ON game_scores;
-CREATE POLICY "game_scores_select" ON game_scores FOR SELECT USING (true);
-CREATE POLICY "game_scores_insert" ON game_scores FOR INSERT WITH CHECK (true);
+-- game_scores removed: no leaderboard feature is active.
+-- Drop both possible table names in case either exists from a prior run.
+DROP TABLE IF EXISTS game_scores;
+DROP TABLE IF EXISTS tetris_scores;
 
 -- ============================================================
 -- puzzle_votes: one row per (puzzle, voter). voter_fingerprint
