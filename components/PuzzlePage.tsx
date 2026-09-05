@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import BlockGame from './BlockGame';
 import { type Puzzle, DIFFICULTY_COLORS, CATEGORY_LABELS, PUZZLES } from './puzzleData';
+import { useAuth } from './useAuth';
+import { supabase } from '../app/utils/supabaseClient';
 
 type Controls = Record<string, string>;
 
@@ -125,6 +127,7 @@ function ResultOverlay({
 
 export default function PuzzlePage({ puzzle }: { puzzle: Puzzle }) {
   const router = useRouter();
+  const { user } = useAuth();
   const [result, setResult] = useState<'playing' | 'pass' | 'fail'>('playing');
   const [gameKey, setGameKey] = useState(0);
   const [controls, setControls] = useState<Controls>({});
@@ -145,7 +148,13 @@ export default function PuzzlePage({ puzzle }: { puzzle: Puzzle }) {
   const handlePass = useCallback(() => {
     markSolved(puzzle.id);
     setResult('pass');
-  }, [puzzle.id]);
+    if (user) {
+      supabase.from('puzzle_solves').upsert(
+        { user_id: user.id, puzzle_id: puzzle.id },
+        { onConflict: 'user_id,puzzle_id', ignoreDuplicates: true }
+      );
+    }
+  }, [puzzle.id, user]);
 
   const handleFail = useCallback(() => {
     setResult('fail');

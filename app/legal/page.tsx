@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: 'Terms & Privacy — TKI',
 };
 
-const EFFECTIVE_DATE = 'September 3, 2026';
+const EFFECTIVE_DATE = 'September 5, 2026';
 const GITHUB_URL = 'https://github.com/Keepas3/TKI';
 const CONTACT_EMAIL = 'bfun679@gmail.com';
 
@@ -110,14 +110,14 @@ export default function LegalPage() {
         </Summary>
 
         <Section n="01" title="About the Service">
-          <P>TKI (&ldquo;the Service&rdquo;) is a non-commercial, independently operated learning platform for block-stacking puzzle games. It provides study content, puzzles, sprint leaderboards, and community tools. The Service is provided free of charge with no monetisation. Access may be modified, suspended, or discontinued at any time without notice.</P>
+          <P>TKI (&ldquo;the Service&rdquo;) is a non-commercial, independently operated learning platform for block-stacking puzzle games. It provides study content, puzzles, and community tools. The Service is provided free of charge with no monetisation. Access may be modified, suspended, or discontinued at any time without notice.</P>
         </Section>
 
         <Rule />
 
         <Section n="02" title="Accounts">
           <P>You may create an account using an email address and password. You are responsible for maintaining the confidentiality of your credentials and for all activity that occurs under your account. You must provide an accurate email address and must not impersonate any other person.</P>
-          <P>You may delete your account at any time by contacting us. We will remove your authentication record and, on request, any content you submitted.</P>
+          <P>You may delete your account at any time from your <strong style={{ color: 'var(--tt-text)', fontWeight: 500 }}>Settings</strong> page. Deletion is immediate and permanent — your authentication record, profile data, puzzle history, and avatar image are removed automatically. Submitted study posts and puzzle submissions you authored may remain but will no longer be linked to an identifiable account.</P>
         </Section>
 
         <Rule />
@@ -183,6 +183,8 @@ export default function LegalPage() {
         <Section n="01" title="What We Collect">
           <P><strong style={{ color: 'var(--tt-text)', fontWeight: 500 }}>Account data</strong> — when you create an account: email address, hashed password (handled by Supabase Auth — we never see the plaintext), and any username or profile visuals (avatar, banner) you choose.</P>
           <P><strong style={{ color: 'var(--tt-text)', fontWeight: 500 }}>Content you submit</strong> — study posts, puzzle submissions, and any text or board data included in them.</P>
+          <P><strong style={{ color: 'var(--tt-text)', fontWeight: 500 }}>Puzzle activity</strong> — a record of which puzzles you have solved and when, stored in our database and used to compute your solve count and daily streak on your profile.</P>
+          <P><strong style={{ color: 'var(--tt-text)', fontWeight: 500 }}>Avatar images</strong> — if you upload a profile photo, it is stored in Supabase Storage (a sub-service of our hosting provider) and served via a public URL. You can replace it at any time from your profile page.</P>
           <P><strong style={{ color: 'var(--tt-text)', fontWeight: 500 }}>Leaderboard entries</strong> — a display name you enter and your sprint completion time. These are public.</P>
           <P><strong style={{ color: 'var(--tt-text)', fontWeight: 500 }}>Local settings</strong> — keybinds, handling tuning, and colour theme are stored in your browser&apos;s <code style={{ fontFamily: 'monospace', fontSize: 13, background: 'var(--tt-kbd-bg)', padding: '1px 5px', borderRadius: 3 }}>localStorage</code> only and never transmitted to our servers.</P>
           <P>We do not collect IP addresses beyond what Supabase&apos;s infrastructure records as part of standard API request logging, and we do not run any analytics or tracking scripts.</P>
@@ -196,6 +198,8 @@ export default function LegalPage() {
             <li>Your email authenticates you and allows password reset</li>
             <li>Your username and profile visuals are displayed on your profile page</li>
             <li>Submitted content is displayed to other users as part of the study and puzzle features</li>
+            <li>Puzzle solve records are used to display your solve count and daily streak on your profile</li>
+            <li>Your uploaded avatar image is displayed on your profile and next to your username</li>
             <li>Leaderboard names and times are displayed publicly on the sprint leaderboard</li>
           </UL>
           <P>We do not use your data for advertising, profiling, or any purpose unrelated to operating the Service.</P>
@@ -206,6 +210,7 @@ export default function LegalPage() {
         <Section n="03" title="Data Storage & Security">
           <P>All account data, user content, and leaderboard entries are stored in <strong style={{ color: 'var(--tt-text)', fontWeight: 500 }}>Supabase</strong> — a hosted Postgres backend with row-level security policies that restrict client access to only what each user is permitted to see. Supabase processes data in accordance with their own privacy policy.</P>
           <P>Authentication (passwords, sessions, password-reset tokens) is handled entirely by Supabase Auth. We do not store or have access to plaintext passwords.</P>
+          <P>Uploaded avatar images are stored in <strong style={{ color: 'var(--tt-text)', fontWeight: 500 }}>Supabase Storage</strong> and served via a public CDN URL. Images are not processed or analysed beyond storage and delivery.</P>
           <P>Because this is a non-commercial sandbox project, you should not store sensitive personal information in study posts or puzzle descriptions.</P>
         </Section>
 
@@ -227,7 +232,7 @@ export default function LegalPage() {
 
         <Section n="06" title="Data Retention & Deletion">
           <P>Your data is retained for as long as your account exists or for as long as the Service operates. Because this is a sandbox project with no SLA, data may be reset or lost at any time.</P>
-          <P>To request deletion of your account and associated data, contact us using the details below. We will delete your authentication record, profile metadata, and submitted content within a reasonable time.</P>
+          <P>You can delete your account at any time from your <strong style={{ color: 'var(--tt-text)', fontWeight: 500 }}>Settings</strong> page. Deletion is immediate: your authentication record, profile metadata, puzzle solve history, and uploaded avatar image are permanently removed. If you are unable to access your account, contact us using the details below and we will action the deletion manually.</P>
           <P>Sprint leaderboard entries submitted under a display name cannot be individually deleted as they contain no identifying information beyond the name you chose to enter.</P>
         </Section>
 

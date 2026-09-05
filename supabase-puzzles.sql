@@ -125,3 +125,30 @@ CREATE POLICY "puzzle_votes_delete" ON puzzle_votes FOR DELETE USING (true);
 ALTER TABLE puzzle_submissions DROP CONSTRAINT IF EXISTS puzzle_submissions_status_check;
 ALTER TABLE puzzle_submissions ADD CONSTRAINT puzzle_submissions_status_check
   CHECK (status IN ('pending', 'approved', 'featured', 'rejected'));
+
+-- ============================================================
+-- puzzle_solves: one row per (user, puzzle) — tracks which
+-- puzzles a signed-in user has solved and when.
+-- UNIQUE constraint prevents duplicate entries for the same puzzle.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS puzzle_solves (
+  id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid        NOT NULL REFERENCES auth.users ON DELETE CASCADE,
+  puzzle_id  text        NOT NULL,
+  solved_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, puzzle_id)
+);
+
+ALTER TABLE puzzle_solves ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "puzzle_solves_select" ON puzzle_solves;
+DROP POLICY IF EXISTS "puzzle_solves_insert" ON puzzle_solves;
+
+-- Users can only read and write their own solve records.
+CREATE POLICY "puzzle_solves_select" ON puzzle_solves
+  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "puzzle_solves_insert" ON puzzle_solves
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+GRANT SELECT, INSERT ON puzzle_solves TO authenticated;

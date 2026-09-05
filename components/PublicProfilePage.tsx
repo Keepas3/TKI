@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '../app/utils/supabaseClient';
 import { useAuth } from './useAuth';
-import { avatarPresetById, bannerPresetById, AvatarMark } from './avatarPresets';
+import { bannerPresetById, AvatarDisplay } from './avatarPresets';
 import { SECONDARY_BUTTON_STYLE } from './authStyles';
 import { TOPICS } from './useStudy';
 import { timeAgo } from './studyUtils';
@@ -76,7 +76,6 @@ export default function PublicProfilePage({ userId }: { userId: string }) {
   }
 
   const isOwn = user?.id === userId;
-  const avatar = avatarPresetById(profile.avatar_id ?? undefined);
   const banner = bannerPresetById(profile.banner_id ?? undefined);
   const displayName = profile.username ?? 'Unknown Player';
 
@@ -96,9 +95,9 @@ export default function PublicProfilePage({ userId }: { userId: string }) {
               width: AVATAR_BOX_SIZE, height: AVATAR_BOX_SIZE, flexShrink: 0, borderRadius: '14px',
               backgroundColor: '#0a0a0e', border: '3px solid rgba(10,10,14,1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.5)', overflow: 'hidden',
             }}>
-              <AvatarMark preset={avatar} size={AVATAR_BOX_SIZE - 24} />
+              <AvatarDisplay avatarId={profile.avatar_id ?? undefined} size={AVATAR_BOX_SIZE} />
             </div>
             <div style={{ paddingBottom: '0.15rem' }}>
               <h1 style={{ margin: 0, fontSize: '1.2rem', letterSpacing: '0.03em' }}>{displayName}</h1>

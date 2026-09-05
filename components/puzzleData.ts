@@ -83,20 +83,18 @@ export const PUZZLES: Puzzle[] = [
     board: makeBoard(),  // empty board,
     queue: [7, 2, 1, 3, 4, 5, 6, 3, 2, 1],   // L, O, I, T, S, Z, J, T, O, I
   },
-   {
-    id: 'new-puzzle',
-    name: 'New Puzzle',
-    category: 'finisher',
+     {
+    id: 'fill-in-the-hole-and-pc',
+    name: 'Fill in the hole and PC',
+    category: 'opening',
     difficulty: 'easy',
-    description: 'Description here.',
+    description: 'The Finisher involves a I Piece',
     board: makeBoard(
-    [_,_,_,_,_,X,X,X,X,X],
-    [_,_,_,_,_,X,X,X,X,X],
-    [_,_,X,X,X,X,X,X,X,X],
-    [_,X,X,X,X,X,X,X,X,X],
-    [_,X,X,X,X,X,X,X,X,X],
+    [X,_,_,_,X,_,_,_,_,_],
+    [X,_,_,X,X,_,_,_,_,_],
+    [X,X,_,_,X,X,X,X,X,_],
   ),
-    queue: [6, 6, 2, 5, 3, 1, 7, 4, 1, 3, 4],   // J, J, O, Z, T, I, L, S, I, T, S
+    queue: [5, 6, 2, 5, 7, 1, 3],   // Z, J, O, Z, L, I, T
   },
   {
     id: 'easy-one',
@@ -229,7 +227,7 @@ export async function fetchPuzzleById(id: string): Promise<Puzzle | undefined> {
   const builtin = PUZZLES.find((p) => p.id === id);
   if (builtin) return builtin;
   try {
-    const { data } = await supabase.from('puzzle_submissions').select('*').eq('id', id).single();
+    const { data } = await supabase.from('puzzle_submissions').select('id, name, difficulty, category, description, board, queue').eq('id', id).single();
     if (data) return submissionToPuzzle(data);
   } catch { /* not found */ }
   return undefined;
@@ -273,7 +271,7 @@ export async function fetchCommunityPuzzles(): Promise<CommunityPuzzle[]> {
     const [puzzlesRes, votesRes] = await Promise.all([
       supabase
         .from('puzzle_submissions')
-        .select('*')
+        .select('id, name, difficulty, category, description, board, queue, status, author_username, created_at')
         .in('status', ['approved', 'featured'])
         .order('created_at', { ascending: false }),
       supabase.from('puzzle_votes').select('puzzle_id'),

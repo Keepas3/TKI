@@ -70,4 +70,22 @@ GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT SELECT ON profiles TO anon;
 GRANT INSERT, UPDATE ON profiles TO authenticated;
 
+-- ── Account self-deletion ────────────────────────────────────
+-- Called by the client via supabase.rpc('delete_account').
+-- SECURITY DEFINER lets it delete from auth.users (normally
+-- restricted) on behalf of the authenticated caller only.
+-- The ON DELETE CASCADE on profiles ensures the profile row
+-- is cleaned up automatically.
+CREATE OR REPLACE FUNCTION delete_account()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  DELETE FROM auth.users WHERE id = auth.uid();
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION delete_account() TO authenticated;
+
 NOTIFY pgrst, 'reload schema';

@@ -1400,7 +1400,7 @@ export default function BlockGame({ mode, onMenu, onAttack, incomingGarbage, onE
         // math as playerReset() itself, computed here since it hasn't run yet.
         {
           const nextMatrix = PIECES[nextPiecesRef.current[0]];
-          const nextX = Math.floor(COLS / 2) - Math.floor(nextMatrix[0].length / 2);
+          const nextX = Math.floor((COLS - nextMatrix[0].length) / 2);
           onBoardUpdate?.({ board: board.current, pieceMatrix: nextMatrix, pieceX: nextX, pieceY: 0, livesRemaining: livesRemainingRef.current, score: scoreRef.current, level: levelRef.current, lines: linesRef.current, next: nextPiecesRef.current.slice(0, 5), hold: holdPieceRef.current, pendingGarbage: pendingGarbageRef.current, ...(isTeamsCoop ? { sharedBoardCleared: true } : {}) });
         }
         playerReset();
@@ -1464,7 +1464,7 @@ export default function BlockGame({ mode, onMenu, onAttack, incomingGarbage, onE
         holdPieceRef.current = null;
         player.current.matrix = PIECES[player.current.type];
         player.current.pos.y = 0;
-        player.current.pos.x = Math.floor(COLS / 2) - Math.floor(player.current.matrix[0].length / 2);
+        player.current.pos.x = Math.floor((COLS - player.current.matrix[0].length) / 2);
         player.current.rotState = 0;
         lowestYRef.current = player.current.pos.y;
         lockResetsRef.current = 0;
@@ -1485,7 +1485,7 @@ export default function BlockGame({ mode, onMenu, onAttack, incomingGarbage, onE
     
     player.current.matrix = PIECES[player.current.type];
     player.current.pos.y = 0;
-    player.current.pos.x = Math.floor(COLS / 2) - Math.floor(player.current.matrix[0].length / 2);
+    player.current.pos.x = Math.floor((COLS - player.current.matrix[0].length) / 2);
     player.current.rotState = 0; 
     
     lowestYRef.current = player.current.pos.y;
@@ -1529,7 +1529,7 @@ export default function BlockGame({ mode, onMenu, onAttack, incomingGarbage, onE
       player.current.type = nextPiecesRef.current.shift()!;
       player.current.matrix = PIECES[player.current.type];
       player.current.pos.y = 0;
-      player.current.pos.x = Math.floor(COLS / 2) - Math.floor(player.current.matrix[0].length / 2);
+      player.current.pos.x = Math.floor((COLS - player.current.matrix[0].length) / 2);
       player.current.rotState = 0;
     }
     
@@ -1685,7 +1685,7 @@ export default function BlockGame({ mode, onMenu, onAttack, incomingGarbage, onE
       // reorder around playerReset()'s own game-over collision check. Same
       // spawn math as playerReset() itself, computed here since it hasn't run yet.
       const nextMatrix = PIECES[nextPiecesRef.current[0]];
-      const nextX = Math.floor(COLS / 2) - Math.floor(nextMatrix[0].length / 2);
+      const nextX = Math.floor((COLS - nextMatrix[0].length) / 2);
       // player.current.matrix/pos still describe the piece that was JUST
       // locked (merge() above only reads them, playerReset() below hasn't
       // run yet) — exactly the delta co-op's merge-only sync needs. Sent
@@ -1839,7 +1839,7 @@ export default function BlockGame({ mode, onMenu, onAttack, incomingGarbage, onE
       holdPieceRef.current = player.current.type; playerReset();
     } else {
       const temp = player.current.type; player.current.type = holdPieceRef.current; player.current.matrix = PIECES[player.current.type];
-      holdPieceRef.current = temp; player.current.pos.y = 0; player.current.pos.x = Math.floor(COLS / 2) - Math.floor(player.current.matrix[0].length / 2);
+      holdPieceRef.current = temp; player.current.pos.y = 0; player.current.pos.x = Math.floor((COLS - player.current.matrix[0].length) / 2);
       player.current.rotState = 0;
 
       lowestYRef.current = player.current.pos.y;
@@ -1870,7 +1870,7 @@ export default function BlockGame({ mode, onMenu, onAttack, incomingGarbage, onE
     if (gameStateRef.current !== 'PLAYING') return;
 
     const matrix = PIECES[type];
-    const pos = { x: Math.floor(COLS / 2) - Math.floor(matrix[0].length / 2), y: 0 };
+    const pos = { x: Math.floor((COLS - matrix[0].length) / 2), y: 0 };
     if (collide(board.current, { matrix, pos })) return; // no room to force-spawn right now
 
     player.current.type = type;
@@ -2398,7 +2398,7 @@ export default function BlockGame({ mode, onMenu, onAttack, incomingGarbage, onE
         // Re-spawn the current piece type at the top without shifting from
         // the queue — type and next-queue order are unchanged.
         player.current.pos.y = 0;
-        player.current.pos.x = Math.floor(COLS / 2) - Math.floor(player.current.matrix[0].length / 2);
+        player.current.pos.x = Math.floor((COLS - player.current.matrix[0].length) / 2);
         player.current.rotState = 0;
         player.current.matrix = PIECES[player.current.type];
         lowestYRef.current = 0;

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { getDailyPuzzleByDate, fetchDailyPuzzle } from './puzzleData';
 import { useAuth } from './useAuth';
-import { AvatarMark, avatarPresetById } from './avatarPresets';
+import { AvatarDisplay } from './avatarPresets';
 
 export const NAV_BAR_HEIGHT = 52;
 
@@ -158,7 +158,6 @@ function UserButton() {
       </Link>
     );
   }
-  const avatar = avatarPresetById(avatarId);
   return (
     <Link href="/profile" style={{
       display: 'flex', alignItems: 'center', gap: '0.45rem',
@@ -171,8 +170,8 @@ function UserButton() {
       onMouseOver={(e) => { e.currentTarget.style.color = 'var(--tt-text)'; e.currentTarget.style.borderColor = 'var(--tt-border-strong)'; }}
       onMouseOut={(e) => { e.currentTarget.style.color = 'var(--tt-text-muted)'; e.currentTarget.style.borderColor = 'var(--tt-border)'; }}
     >
-      <div style={{ width: 20, height: 20, borderRadius: '4px', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <AvatarMark preset={avatar} size={16} />
+      <div style={{ width: 20, height: 20, borderRadius: '4px', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+        <AvatarDisplay avatarId={avatarId} size={20} />
       </div>
       {displayName}
     </Link>

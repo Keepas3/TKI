@@ -55,3 +55,20 @@ export function AvatarMark({ preset, size }: { preset: AvatarPreset; size: numbe
     </div>
   );
 }
+
+export function isAvatarUrl(id: string | undefined): boolean {
+  return !!id && id.startsWith('https://');
+}
+
+export function AvatarDisplay({ avatarId, size }: { avatarId: string | undefined; size: number }) {
+  if (isAvatarUrl(avatarId)) {
+    return (
+      <img
+        src={avatarId}
+        alt="avatar"
+        style={{ width: size, height: size, borderRadius: 4, objectFit: 'cover', display: 'block' }}
+      />
+    );
+  }
+  return <AvatarMark preset={avatarPresetById(avatarId)} size={size} />;
+}

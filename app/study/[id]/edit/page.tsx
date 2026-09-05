@@ -4,24 +4,44 @@ import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import StudyEditorPage from '@/components/StudyEditorPage';
 import { usePost, isOwnedPost, fetchEditToken, addOwnedPostId } from '@/components/useStudy';
+import { useAuth } from '@/components/useAuth';
 import { NAV_BAR_HEIGHT } from '@/components/NavBar';
 
 function EditPageInner({ id, token }: { id: string; token?: string }) {
   const { post, loading } = usePost(id);
+  const { user, isAdmin, adminChecked } = useAuth();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!id) return;
-    // Fast path: owned by this device
+
+    // Fast path: owned by this device.
     if (isOwnedPost(id)) { setAuthorized(true); return; }
-    // Slow path: verify URL token against DB
-    if (!token) { setAuthorized(false); return; }
-    fetchEditToken(id).then((stored) => {
-      const ok = !!stored && stored === token;
-      if (ok) addOwnedPostId(id); // register on this device going forward
-      setAuthorized(ok);
-    });
-  }, [id, token]);
+
+    // Wait for auth to fully resolve before making a decision.
+    if (user === undefined || !adminChecked) return;
+
+    // Signed-in: admin or post author.
+    if (user !== null) {
+      if (isAdmin) { setAuthorized(true); return; }
+      if (post && user.id === post.author_id) { setAuthorized(true); return; }
+      // If post is still loading we can't check author_id yet — wait.
+      if (!post && !loading) { setAuthorized(false); return; }
+      if (!post) return; // still loading, keep null
+    }
+
+    // Anonymous with URL token: verify against DB.
+    if (token) {
+      fetchEditToken(id).then((stored) => {
+        const ok = !!stored && stored === token;
+        if (ok) addOwnedPostId(id);
+        setAuthorized(ok);
+      });
+      return;
+    }
+
+    setAuthorized(false);
+  }, [id, token, user, isAdmin, adminChecked, post, loading]);
 
   if (loading || authorized === null) {
     return (

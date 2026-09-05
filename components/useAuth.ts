@@ -88,6 +88,26 @@ export function useAuth() {
     return {};
   }, []);
 
+  const uploadAvatar = useCallback(async (file: File): Promise<AuthResult> => {
+    if (!user) return { error: 'Not signed in' };
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const path = `${user.id}/avatar.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (uploadError) return { error: uploadError.message };
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+    const url = `${data.publicUrl}?t=${Date.now()}`;
+    return updateProfileVisuals({ avatarId: url });
+  }, [user, updateProfileVisuals]);
+
+  const deleteAccount = useCallback(async (): Promise<AuthResult> => {
+    const { error } = await supabase.rpc('delete_account');
+    if (error) return { error: error.message };
+    await supabase.auth.signOut();
+    return {};
+  }, []);
+
   const updatePassword = useCallback(async (newPassword: string): Promise<AuthResult> => {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) return { error: error.message };
@@ -109,6 +129,6 @@ export function useAuth() {
 
   return {
     user, displayName, avatarId, bannerId, isPasswordRecovery, isAdmin, adminChecked,
-    signUp, signIn, signOut, updateUsername, updateProfileVisuals, updatePassword, requestPasswordReset,
+    signUp, signIn, signOut, updateUsername, updateProfileVisuals, uploadAvatar, updatePassword, requestPasswordReset, deleteAccount,
   };
 }
