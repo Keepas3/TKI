@@ -46,9 +46,13 @@ DROP POLICY IF EXISTS "study_posts_insert" ON study_posts;
 DROP POLICY IF EXISTS "study_posts_update" ON study_posts;
 DROP POLICY IF EXISTS "study_posts_delete" ON study_posts;
 
--- Readers see only public + published posts.
+-- Public can see published posts; authors can always see their own posts.
 CREATE POLICY "study_posts_read" ON study_posts
-  FOR SELECT USING (is_public = true AND status = 'published');
+  FOR SELECT USING (
+    (is_public = true AND status = 'published')
+    OR auth.uid() = author_id
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+  );
 
 -- Anyone can submit (anonymous posts allowed).
 CREATE POLICY "study_posts_insert" ON study_posts

@@ -54,7 +54,13 @@ function StudyCard({ post }: { post: StudyPost }) {
               {post.vote_count}
             </span>
             <span>·</span>
-            <span style={{ color: 'var(--tt-text-muted)' }}>{post.author_username ?? 'Anonymous'}</span>
+            {post.author_id ? (
+              <Link href={`/profile/${post.author_id}`} style={{ color: 'var(--tt-text-muted)', textDecoration: 'none' }}>
+                {post.author_username ?? 'Unknown'}
+              </Link>
+            ) : (
+              <span style={{ color: 'var(--tt-text-muted)' }}>Anonymous</span>
+            )}
             <span>·</span>
             <span>{timeAgo(post.created_at)}</span>
             {!post.is_public && (

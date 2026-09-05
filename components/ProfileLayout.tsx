@@ -7,8 +7,9 @@ import { useAuth } from './useAuth';
 
 const TABS = [
   { href: '/profile', label: 'Profile' },
-  { href: '/profile/settings', label: 'Settings' },
   { href: '/profile/puzzles', label: 'Puzzles' },
+  { href: '/profile/studies', label: 'Studies' },
+  { href: '/profile/settings', label: 'Settings' },
 ] as const;
 
 export default function ProfileLayout({ children }: { children: React.ReactNode }) {

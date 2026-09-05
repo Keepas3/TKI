@@ -164,13 +164,12 @@ export default function ProfileTab() {
           <div style={PROFILE_CARD_STYLE}>
             <div style={SECTION_HEADING}>General<span style={SOON_TAG}>Soon</span></div>
             <StatRow label="Puzzles Solved" value="—" />
-            <StatRow label="Studies Written" value="—" />
-            <StatRow label="Sprint Best" value="—" isLast />
+            <StatRow label="Studies Written" value="—" isLast />
           </div>
         </div>
         <div style={{ flex: 1, minWidth: '260px', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <ModePanel label="Puzzles" stats={['Solved', 'Current Streak', 'Best Streak', 'Avg Solve Time']} />
-          <ModePanel label="Sprint" stats={['Best 40L Time', 'Best Blitz Score']} compact />
+          <ModePanel label="Studies" stats={['Published', 'Total Views', 'Total Votes']} compact />
         </div>
       </div>
     </div>
