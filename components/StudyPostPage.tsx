@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePost, useVote, TOPICS, isOwnedPost, type Chapter, type TextBlock } from './useStudy';
+import { useAuth } from './useAuth';
 import BlockGame from './BlockGame';
 
 // ── Board display (static) ───────────────────────────────────────────────────
@@ -404,13 +405,19 @@ function getAnonId(): string {
 
 export default function StudyPostPage({ id }: { id: string }) {
   const { post, loading, error } = usePost(id);
+  const { user } = useAuth();
   const [activeIdx, setActiveIdx] = useState(0);
   const [voteCount, setVoteCount] = useState(0);
   const [anonId, setAnonId] = useState<string | null>(null);
   const [canEdit, setCanEdit] = useState(false);
 
   useEffect(() => { setAnonId(getAnonId()); }, []);
-  useEffect(() => { if (id) setCanEdit(isOwnedPost(id)); }, [id]);
+  useEffect(() => {
+    if (!id) return;
+    // Auth ownership takes priority; fall back to localStorage token for guests
+    if (user && post && user.id === post.author_id) { setCanEdit(true); return; }
+    setCanEdit(isOwnedPost(id));
+  }, [id, user, post]);
 
   const { voted, toggle: toggleVote } = useVote(id, anonId);
 
