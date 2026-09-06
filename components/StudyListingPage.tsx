@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { usePosts, TOPICS, type Topic, type ViewType, type SortOrder, type StudyPost } from './useStudy';
+import { usePosts, useFavoritePosts, useMyPosts, TOPICS, type Topic, type ViewType, type SortOrder, type StudyPost, type MyStudiesFilter } from './useStudy';
 import { useAuth } from './useAuth';
 import { topicColor, topicLabel, timeAgo, StudyIcon } from './studyUtils';
 
@@ -66,7 +66,11 @@ function StudyCard({ post }: { post: StudyPost }) {
               <span style={{ color: 'var(--tt-text-muted)' }}>Anonymous</span>
             )}
             <span>·</span>
-            <span>{timeAgo(post.created_at)}</span>
+            <span>
+              {post.updated_at && post.updated_at !== post.created_at
+                ? `updated ${timeAgo(post.updated_at)}`
+                : timeAgo(post.created_at)}
+            </span>
             {!post.is_public && (
               <>
                 <span>·</span>
@@ -95,6 +99,114 @@ function StudyCard({ post }: { post: StudyPost }) {
 }
 
 // ---------------------------------------------------------------------------
+// My-study card — same layout, adds status badge + edit link
+// ---------------------------------------------------------------------------
+
+const STATUS_COLORS: Record<string, string> = {
+  published: '#4ade80',
+  pending:   '#fbbf24',
+  rejected:  '#f87171',
+};
+
+function MyStudyCard({ post }: { post: StudyPost }) {
+  const router = useRouter();
+  const color = topicColor(post.topic);
+  const statusColor = STATUS_COLORS[post.status] ?? 'rgba(255,255,255,0.35)';
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column',
+      backgroundColor: 'rgba(255,255,255,0.03)',
+      border: '1px solid var(--tt-border)',
+      borderRadius: '8px', padding: '0.9rem 1rem',
+      transition: 'background-color 0.12s, border-color 0.12s',
+    }}
+      onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'var(--tt-surface)'; e.currentTarget.style.borderColor = 'var(--tt-border-strong)'; }}
+      onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'var(--tt-border)'; }}
+    >
+      {/* Header row */}
+      <div style={{ display: 'flex', gap: '0.7rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+        <StudyIcon topic={post.topic} size={40} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Title + edit button */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.25rem' }}>
+            <button
+              type="button"
+              onClick={() => router.push(`/study/${post.id}`)}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', flex: 1, minWidth: 0 }}
+            >
+              <h3 style={{
+                margin: 0, fontSize: '0.92rem', fontWeight: 'bold', color,
+                lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box',
+                WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+              }}>
+                {post.title}
+              </h3>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); router.push(`/study/${post.id}/edit`); }}
+              style={{
+                flexShrink: 0, fontSize: '0.65rem', color: 'var(--tt-text-faint)',
+                border: '1px solid var(--tt-border-strong)', borderRadius: '4px',
+                padding: '2px 8px', background: 'none', cursor: 'pointer',
+                fontFamily: 'monospace', whiteSpace: 'nowrap',
+              }}
+            >
+              Edit
+            </button>
+          </div>
+          {/* Meta row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', fontSize: '0.68rem', color: 'var(--tt-text-faint)' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor">
+                <path d="M6 10.5S1 7 1 3.5A2.5 2.5 0 0 1 6 2a2.5 2.5 0 0 1 5 1.5C11 7 6 10.5 6 10.5z" />
+              </svg>
+              {post.vote_count}
+            </span>
+            <span>·</span>
+            <span>
+              {post.updated_at && post.updated_at !== post.created_at
+                ? `updated ${timeAgo(post.updated_at)}`
+                : timeAgo(post.created_at)}
+            </span>
+            <span>·</span>
+            <span style={{
+              fontSize: '0.6rem', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 700,
+              color: statusColor, background: `${statusColor}18`,
+              border: `1px solid ${statusColor}44`, borderRadius: '3px', padding: '1px 5px',
+            }}>
+              {post.status}
+            </span>
+            <span style={{
+              fontSize: '0.6rem', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 700,
+              color: post.is_public ? 'var(--tt-text-faint)' : '#fbbf24',
+              background: post.is_public ? 'transparent' : 'rgba(251,191,36,0.08)',
+              border: `1px solid ${post.is_public ? 'var(--tt-border-strong)' : 'rgba(251,191,36,0.3)'}`,
+              borderRadius: '3px', padding: '1px 5px',
+            }}>
+              {post.is_public ? 'Public' : 'Private'}
+            </span>
+          </div>
+        </div>
+      </div>
+      {/* Chapters */}
+      {post.chapters.length > 0 && (
+        <ul style={{ margin: '0.45rem 0 0 0', padding: '0 0 0 0.2rem', listStyle: 'none', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.1rem 0.5rem' }}>
+          {post.chapters.slice(0, 6).map((ch, i) => (
+            <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.68rem', color: 'var(--tt-text-faint)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="1.5">
+                <circle cx="4" cy="4" r="2.5" />
+              </svg>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ch}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Sidebar
 // ---------------------------------------------------------------------------
 
@@ -102,7 +214,9 @@ type SidebarView =
   | { type: 'all' }
   | { type: 'topics' }
   | { type: 'topic'; topic: Topic }
-  | { type: 'pending' };
+  | { type: 'pending' }
+  | { type: 'favorites' }
+  | { type: 'mine' };
 
 
 const SIDEBAR_LINK: React.CSSProperties = {
@@ -136,7 +250,7 @@ function SidebarItem({ label, active, onClick, indent }: { label: string; active
   );
 }
 
-function Sidebar({ active, onChange, isAdmin }: { active: SidebarView; onChange: (v: SidebarView) => void; isAdmin: boolean }) {
+function Sidebar({ active, onChange, isAdmin, isSignedIn }: { active: SidebarView; onChange: (v: SidebarView) => void; isAdmin: boolean; isSignedIn: boolean }) {
   const isTopics = active.type === 'topics' || active.type === 'topic';
 
   return (
@@ -146,6 +260,8 @@ function Sidebar({ active, onChange, isAdmin }: { active: SidebarView; onChange:
       paddingTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.05rem',
     }}>
       <SidebarItem label="All studies"    active={active.type === 'all'}       onClick={() => onChange({ type: 'all' })} />
+      {isSignedIn && <SidebarItem label="♥ Favorites" active={active.type === 'favorites'} onClick={() => onChange({ type: 'favorites' })} />}
+      {isSignedIn && <SidebarItem label="✎ My Studies"  active={active.type === 'mine'}      onClick={() => onChange({ type: 'mine' })} />}
       {isAdmin && <SidebarItem label="⚑ Pending review" active={active.type === 'pending'} onClick={() => onChange({ type: 'pending' })} />}
 
       <div style={{ height: '1px', backgroundColor: 'var(--tt-border)', margin: '0.4rem 0.75rem' }} />
@@ -208,6 +324,40 @@ function Sidebar({ active, onChange, isAdmin }: { active: SidebarView; onChange:
 
 function EmptyState({ view }: { view: SidebarView }) {
   const router = useRouter();
+
+  if (view.type === 'mine') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.85rem', padding: '5rem 2rem', color: 'rgba(255,255,255,0.35)' }}>
+        <svg width="42" height="42" viewBox="0 0 42 42" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M21 7c-4-3.1-9.2-5-15-5C3.6 2 2 2.2 1 2.5v33c1-.3 2.6-.5 5-.5 5.8 0 11 1.9 15 5" />
+          <path d="M21 7c4-3.1 9.2-5 15-5 2.4 0 4 .2 5 .5v33c-1-.3-2.6-.5-5-.5-5.8 0-11 1.9-15 5V7z" />
+          <path d="M21 7v33" strokeOpacity="0.4" />
+        </svg>
+        <p style={{ margin: 0, fontSize: '0.88rem' }}>No studies yet</p>
+        <button type="button" onClick={() => router.push('/study/new')}
+          style={{ backgroundColor: 'var(--tt-accent)', color: 'black', fontWeight: 'bold', border: 'none', borderRadius: '6px', padding: '0.5rem 1.1rem', fontFamily: 'monospace', fontSize: '0.75rem', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
+          + New Study
+        </button>
+      </div>
+    );
+  }
+
+  if (view.type === 'favorites') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.85rem', padding: '5rem 2rem', color: 'rgba(255,255,255,0.35)' }}>
+        <svg width="42" height="42" viewBox="0 0 42 42" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M21 36S4 25 4 13a8 8 0 0 1 17-2 8 8 0 0 1 17 2c0 12-17 23-17 23z" />
+        </svg>
+        <p style={{ margin: 0, fontSize: '0.88rem' }}>No favorites yet</p>
+        <p style={{ margin: 0, fontSize: '0.73rem', color: 'var(--tt-text-dim)' }}>Like a study to add it here</p>
+        <button type="button" onClick={() => router.push('/study')}
+          style={{ backgroundColor: 'var(--tt-surface-hover)', color: 'var(--tt-text)', fontWeight: 'bold', border: '1px solid var(--tt-border-strong)', borderRadius: '6px', padding: '0.5rem 1.1rem', fontFamily: 'monospace', fontSize: '0.75rem', cursor: 'pointer' }}>
+          Browse studies
+        </button>
+      </div>
+    );
+  }
+
   const msg = 'No studies found';
   const sub = view.type === 'topic' ? `Nothing filed under ${topicLabel(view.topic)} yet — be the first!` : '';
 
@@ -261,7 +411,7 @@ function SkeletonCard() {
 export default function StudyListingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
 
   const initialTopic = searchParams.get('topic') as Topic | null;
   const [sidebarView, setSidebarView] = useState<SidebarView>(
@@ -272,25 +422,44 @@ export default function StudyListingPage() {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortOrder>('hot');
+  const [mineFilter, setMineFilter] = useState<MyStudiesFilter>('all');
 
-  // Derive usePosts options from sidebar view
+  const isFavorites = sidebarView.type === 'favorites';
+  const isMine      = sidebarView.type === 'mine';
+
+  // Derive usePosts options from sidebar view (not used for favorites/mine)
   const viewType: ViewType = sidebarView.type === 'topic' ? 'topic' : sidebarView.type === 'pending' ? 'pending' : 'all';
   const activeTopic = sidebarView.type === 'topic' ? sidebarView.topic : null;
 
-  const { posts, loading, error } = usePosts({
+  const { posts: regularPosts, loading: regularLoading, error: regularError } = usePosts({
     view: viewType,
     topic: activeTopic,
     search,
     sort,
   });
 
+  const { posts: favPosts, loading: favLoading, error: favError } = useFavoritePosts(
+    isFavorites ? (user?.id ?? null) : null
+  );
+
+  const { posts: minePosts, loading: mineLoading, error: mineError } = useMyPosts(
+    isMine ? (user?.id ?? null) : null,
+    mineFilter,
+  );
+
+  const posts   = isMine ? minePosts   : isFavorites ? favPosts   : regularPosts;
+  const loading = isMine ? mineLoading : isFavorites ? favLoading : regularLoading;
+  const error   = isMine ? mineError   : isFavorites ? favError   : regularError;
+
   // Heading title for current view
   function viewTitle(): string {
     switch (sidebarView.type) {
-      case 'all':     return 'All studies';
-      case 'topics':  return 'Topics';
-      case 'topic':   return topicLabel(sidebarView.topic);
-      case 'pending': return 'Pending review';
+      case 'all':       return 'All studies';
+      case 'topics':    return 'Topics';
+      case 'topic':     return topicLabel(sidebarView.topic);
+      case 'pending':   return 'Pending review';
+      case 'favorites': return 'Favorites';
+      case 'mine':      return 'My Studies';
     }
   }
 
@@ -303,7 +472,7 @@ export default function StudyListingPage() {
     <div style={{ display: 'flex', height: '100%', fontFamily: 'monospace', backgroundColor: 'var(--tt-bg)' }}>
 
       {/* ── Left sidebar ── */}
-      <Sidebar active={sidebarView} onChange={setSidebarView} isAdmin={isAdmin} />
+      <Sidebar active={sidebarView} onChange={setSidebarView} isAdmin={isAdmin} isSignedIn={!!user} />
 
       {/* ── Main content ── */}
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -350,26 +519,51 @@ export default function StudyListingPage() {
             )}
           </form>
 
-          {/* Sort toggle */}
-          <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--tt-border-strong)' }}>
-            {(['hot', 'new'] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setSort(s)}
-                style={{
-                  padding: '0.5rem 0.85rem',
-                  background: sort === s ? 'var(--tt-accent)' : 'var(--tt-border)',
-                  color: sort === s ? '#000' : 'var(--tt-text)',
-                  fontFamily: 'monospace', fontSize: '0.8rem',
-                  border: 'none', cursor: 'pointer',
-                  fontWeight: sort === s ? 700 : 400,
-                  textTransform: 'capitalize',
-                }}
-              >
-                {s === 'hot' ? 'Hot' : 'New'}
-              </button>
-            ))}
-          </div>
+          {/* Sort toggle — hidden in favorites/mine (fixed ordering) */}
+          {!isFavorites && !isMine && (
+            <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--tt-border-strong)' }}>
+              {(['hot', 'new'] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSort(s)}
+                  style={{
+                    padding: '0.5rem 0.85rem',
+                    background: sort === s ? 'var(--tt-accent)' : 'var(--tt-border)',
+                    color: sort === s ? '#000' : 'var(--tt-text)',
+                    fontFamily: 'monospace', fontSize: '0.8rem',
+                    border: 'none', cursor: 'pointer',
+                    fontWeight: sort === s ? 700 : 400,
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  {s === 'hot' ? 'Hot' : 'New'}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Public/Private filter — only in My Studies */}
+          {isMine && (
+            <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--tt-border-strong)' }}>
+              {(['all', 'public', 'private'] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setMineFilter(f)}
+                  style={{
+                    padding: '0.5rem 0.85rem',
+                    background: mineFilter === f ? 'var(--tt-accent)' : 'var(--tt-border)',
+                    color: mineFilter === f ? '#000' : 'var(--tt-text)',
+                    fontFamily: 'monospace', fontSize: '0.8rem',
+                    border: 'none', cursor: 'pointer',
+                    fontWeight: mineFilter === f ? 700 : 400,
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  {f === 'all' ? 'All' : f === 'public' ? 'Public' : 'Private'}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* New study button */}
           <button
@@ -435,7 +629,10 @@ export default function StudyListingPage() {
             <EmptyState view={sidebarView} />
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
-              {posts.map((p) => <StudyCard key={p.id} post={p} />)}
+              {isMine
+                ? posts.map((p) => <MyStudyCard key={p.id} post={p} />)
+                : posts.map((p) => <StudyCard   key={p.id} post={p} />)
+              }
             </div>
           )}
         </div>

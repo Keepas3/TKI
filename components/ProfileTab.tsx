@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from './useAuth';
 import { PROFILE_CARD_STYLE } from './ProfileLayout';
-import { FIELD_STYLE, PRIMARY_BUTTON_STYLE, SECONDARY_BUTTON_STYLE, ERROR_TEXT_STYLE, SUCCESS_TEXT_STYLE } from './authStyles';
+import { PRIMARY_BUTTON_STYLE, SECONDARY_BUTTON_STYLE } from './authStyles';
 import PresetPicker from './PresetPicker';
 import { BANNER_PRESETS, bannerPresetById, AvatarDisplay } from './avatarPresets';
 import { supabase } from '../app/utils/supabaseClient';
@@ -80,21 +80,12 @@ function StatBlock({ label, value, sub }: { label: string; value: string | numbe
 }
 
 export default function ProfileTab() {
-  const { user, displayName, avatarId, bannerId, updateUsername, uploadAvatar, updateProfileVisuals } = useAuth();
-  const [username, setUsername] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const { user, displayName, avatarId, bannerId, uploadAvatar, updateProfileVisuals } = useAuth();
   const [pickerOpen, setPickerOpen] = useState<'banner' | null>(null);
   const [visualsBusy, setVisualsBusy] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [studyStats, setStudyStats] = useState<StudyStats | null>(null);
   const [puzzleStats, setPuzzleStats] = useState<PuzzleStats | null>(null);
-
-  // Sync username field when auth resolves.
-  useEffect(() => {
-    if (displayName) setUsername(displayName);
-  }, [displayName]);
 
   // Fetch real study stats.
   useEffect(() => {
@@ -137,18 +128,6 @@ export default function ProfileTab() {
     : null;
 
   const banner = bannerPresetById(bannerId);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null); setSaved(false);
-    const trimmed = username.trim();
-    if (!trimmed) { setError("Username can't be empty."); return; }
-    setBusy(true);
-    const result = await updateUsername(trimmed);
-    setBusy(false);
-    if (result.error) setError(result.error);
-    else setSaved(true);
-  };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -209,21 +188,6 @@ export default function ProfileTab() {
 
         {/* Left column */}
         <div style={{ width: '260px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div style={PROFILE_CARD_STYLE}>
-            <div style={SECTION_HEADING}>Account</div>
-            <div style={{ marginBottom: '1rem' }}>
-              <span style={LABEL_STYLE}>Email</span>
-              <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>{user.email}</span>
-            </div>
-            <span style={LABEL_STYLE}>Username</span>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <input value={username} onChange={(e) => { setUsername(e.target.value.slice(0, 20)); setSaved(false); }} maxLength={20} required style={FIELD_STYLE} />
-              <button type="submit" disabled={busy} style={{ ...PRIMARY_BUTTON_STYLE, opacity: busy ? 0.6 : 1 }}>{busy ? 'Saving…' : 'Save Username'}</button>
-            </form>
-            {error && <p style={{ ...ERROR_TEXT_STYLE, marginTop: '0.5rem' }}>{error}</p>}
-            {saved && <p style={{ ...SUCCESS_TEXT_STYLE, marginTop: '0.5rem' }}>Username updated.</p>}
-          </div>
-
           <div style={PROFILE_CARD_STYLE}>
             <div style={SECTION_HEADING}>General</div>
             <StatRow label="Puzzles Solved" value={puzzleStats ? puzzleStats.solved : '—'} />

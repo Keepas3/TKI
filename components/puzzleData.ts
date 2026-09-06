@@ -37,7 +37,6 @@ export const PIECE_NAMES: Record<number, string> = {
 // ---------------------------------------------------------------------------
 
 const _ = 0;
-const X = 6;   // filled cell (blue, neutral "given" color)
 
 function makeBoard(...rows: number[][]): number[][] {
   const board: number[][] = Array.from({ length: 20 }, () => Array(10).fill(0));
@@ -83,18 +82,18 @@ export const PUZZLES: Puzzle[] = [
     board: makeBoard(),  // empty board,
     queue: [7, 2, 1, 3, 4, 5, 6, 3, 2, 1],   // L, O, I, T, S, Z, J, T, O, I
   },
-     {
+      {
     id: 'fill-in-the-hole-and-pc',
     name: 'Fill in the hole and PC',
     category: 'opening',
     difficulty: 'easy',
-    description: 'The Finisher involves a I Piece',
+    description: 'The finisher involves a I Piece',
     board: makeBoard(
-    [X,_,_,_,X,_,_,_,_,_],
-    [X,_,_,X,X,_,_,_,_,_],
-    [X,X,_,_,X,X,X,X,X,_],
+    [7,_,_,_,_,_,_,_,_,_],
+    [7,_,_,_,_,_,_,_,_,_],
+    [7,7,_,_,_,1,1,1,1,_],
   ),
-    queue: [5, 6, 2, 5, 7, 1, 3],   // Z, J, O, Z, L, I, T
+    queue: [3, 6, 5, 2, 7, 5, 1, 3],   // T, J, Z, O, L, Z, I, T
   },
   {
     id: 'easy-one',

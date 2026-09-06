@@ -32,7 +32,7 @@ function BoardPreview({ board }: { board: number[][] }) {
               y={PAD + r * CELL}
               width={CELL - 1}
               height={CELL - 1}
-              fill={PIECE_COLORS[cell] ?? '#0ea5e9'}
+              fill={PIECE_COLORS[cell] ?? '#888'}
               rx={0.5}
             />
           ) : null

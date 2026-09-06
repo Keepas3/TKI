@@ -8,7 +8,7 @@ import { supabase } from '../app/utils/supabaseClient';
 // ---------------------------------------------------------------------------
 
 export type Topic = 'opening' | 'timed' | 'pc' | 'multiplayer' | 'combo' | 'general';
-export type ViewType = 'all' | 'topic' | 'pending';
+export type ViewType = 'all' | 'topic' | 'pending' | 'favorites';
 export type SortOrder = 'hot' | 'new';
 export type BoardType = 'single' | '2v2' | 'coop';
 
@@ -70,6 +70,7 @@ export interface StudyPost {
   vote_count: number;
   status: string;
   created_at: string;
+  updated_at?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,8 +111,8 @@ export function extractChapterTitles(chapters: Chapter[]): string[] {
 // Post listing
 // ---------------------------------------------------------------------------
 
-const LIST_SELECT = 'id, author_id, author_username, title, topic, summary, chapters, is_public, vote_count, created_at';
-const POST_SELECT = 'id, author_id, author_username, title, topic, summary, content, chapters, is_public, vote_count, status, created_at';
+const LIST_SELECT = 'id, author_id, author_username, title, topic, summary, chapters, is_public, vote_count, created_at, updated_at';
+const POST_SELECT = 'id, author_id, author_username, title, topic, summary, content, chapters, is_public, vote_count, status, created_at, updated_at';
 
 interface UsePostsOptions {
   view: ViewType;
@@ -165,6 +166,7 @@ function normalise(rows: unknown[]): StudyPost[] {
     vote_count: row.vote_count as number,
     status: (row.status as string | undefined) ?? 'published',
     created_at: row.created_at as string,
+    updated_at: (row.updated_at as string | undefined) ?? undefined,
   }));
 }
 
@@ -204,6 +206,7 @@ export function usePost(id: string) {
         vote_count: row.vote_count as number,
         status: (row.status as string | undefined) ?? 'published',
         created_at: row.created_at as string,
+        updated_at: (row.updated_at as string | undefined) ?? undefined,
       });
       setLoading(false);
     })();
@@ -221,27 +224,119 @@ export function usePost(id: string) {
 export function useVote(postId: string, userId: string | null) {
   const [voted, setVoted] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    if (!userId || !postId) { setVoted(false); return; }
+    if (!userId || !postId) { setVoted(false); setChecking(false); return; }
+    let active = true;
+    setChecking(true);
     supabase.from('study_votes').select('post_id').eq('post_id', postId).eq('user_id', userId)
-      .maybeSingle().then(({ data }) => setVoted(!!data));
+      .maybeSingle().then(({ data }) => {
+        if (!active) return;
+        setVoted(!!data);
+        setChecking(false);
+      });
+    return () => { active = false; };
   }, [postId, userId]);
 
-  const toggle = useCallback(async (currentCount: number, onCountChange: (n: number) => void) => {
-    if (!userId || busy) return;
+  const toggle = useCallback(async (_currentCount: number, onCountChange: (n: number) => void) => {
+    if (!userId || busy || checking) return;
     setBusy(true);
     if (voted) {
-      await supabase.from('study_votes').delete().eq('post_id', postId).eq('user_id', userId);
-      setVoted(false); onCountChange(currentCount - 1);
+      const { error } = await supabase.from('study_votes').delete()
+        .eq('post_id', postId).eq('user_id', userId);
+      if (!error) setVoted(false);
     } else {
-      await supabase.from('study_votes').insert({ post_id: postId, user_id: userId });
-      setVoted(true); onCountChange(currentCount + 1);
+      const { error } = await supabase.from('study_votes').insert({ post_id: postId, user_id: userId });
+      if (!error) setVoted(true);
     }
+    // Read real count from study_votes — avoids needing trigger/RPC to update study_posts.vote_count
+    const { count } = await supabase.from('study_votes')
+      .select('*', { count: 'exact', head: true })
+      .eq('post_id', postId);
+    if (count !== null) onCountChange(count);
     setBusy(false);
-  }, [postId, userId, voted, busy]);
+  }, [postId, userId, voted, busy, checking]);
 
-  return { voted, toggle, busy };
+  return { voted, toggle, busy, checking };
+}
+
+// ---------------------------------------------------------------------------
+// My Studies — posts authored by the current user
+// ---------------------------------------------------------------------------
+
+export type MyStudiesFilter = 'all' | 'public' | 'private';
+
+const MY_SELECT = 'id, author_id, author_username, title, topic, summary, chapters, is_public, vote_count, status, created_at, updated_at';
+
+export function useMyPosts(userId: string | null, filter: MyStudiesFilter = 'all') {
+  const [posts, setPosts] = useState<StudyPost[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) { setPosts([]); setLoading(false); return; }
+    let active = true;
+    setLoading(true);
+    setError(null);
+
+    (async () => {
+      let q = supabase.from('study_posts').select(MY_SELECT).eq('author_id', userId);
+      if (filter === 'public')  q = q.eq('is_public', true);
+      if (filter === 'private') q = q.eq('is_public', false);
+      q = q.order('created_at', { ascending: false });
+
+      const { data, error: err } = await q;
+      if (!active) return;
+      if (err) { setError(err.message); setLoading(false); return; }
+      setPosts(normalise(data ?? []));
+      setLoading(false);
+    })();
+
+    return () => { active = false; };
+  }, [userId, filter]);
+
+  return { posts, loading, error };
+}
+
+// ---------------------------------------------------------------------------
+// Favorites — posts the current user has liked
+// ---------------------------------------------------------------------------
+
+export function useFavoritePosts(userId: string | null) {
+  const [posts, setPosts] = useState<StudyPost[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) { setPosts([]); setLoading(false); return; }
+    let active = true;
+    setLoading(true);
+    setError(null);
+
+    (async () => {
+      const { data: voteData, error: voteErr } = await supabase
+        .from('study_votes').select('post_id').eq('user_id', userId);
+      if (!active) return;
+      if (voteErr) { setError(voteErr.message); setLoading(false); return; }
+
+      const ids = (voteData ?? []).map((v: Record<string, unknown>) => v.post_id as string);
+      if (ids.length === 0) { setPosts([]); setLoading(false); return; }
+
+      const { data, error: postErr } = await supabase
+        .from('study_posts').select(LIST_SELECT)
+        .in('id', ids).eq('is_public', true).eq('status', 'published')
+        .order('vote_count', { ascending: false });
+      if (!active) return;
+      if (postErr) { setError(postErr.message); setLoading(false); return; }
+      setPosts(normalise(data ?? []));
+      setLoading(false);
+    })();
+
+    return () => { active = false; };
+  }, [userId]);
+
+  return { posts, loading, error };
 }
 
 // ---------------------------------------------------------------------------

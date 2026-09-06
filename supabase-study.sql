@@ -107,7 +107,7 @@ DROP TABLE IF EXISTS study_favorites;
 -- ── Vote count trigger ───────────────────────────────────────
 
 CREATE OR REPLACE FUNCTION update_study_vote_count()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
     UPDATE study_posts SET vote_count = vote_count + 1 WHERE id = NEW.post_id;

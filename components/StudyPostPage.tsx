@@ -494,7 +494,10 @@ export default function StudyPostPage({ id }: { id: string }) {
     setCanEdit(isOwnedPost(id));
   }, [id, user, post, isAdmin]);
 
-  const { voted, toggle: toggleVote } = useVote(id, anonId);
+  // user===undefined means auth is still loading; don't fall back to anonId yet
+  // or we'd store the vote under the anon key and lose it once auth resolves.
+  const effectiveVoter = user === undefined ? null : (user?.id ?? anonId);
+  const { voted, toggle: toggleVote, busy: voteBusy, checking: voteChecking } = useVote(id, effectiveVoter);
 
   useEffect(() => {
     if (post) setVoteCount(post.vote_count);
@@ -652,13 +655,15 @@ export default function StudyPostPage({ id }: { id: string }) {
         <div style={{ padding: '10px 16px', borderTop: '1px solid var(--tt-border)', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <button
             onClick={() => toggleVote(voteCount, setVoteCount)}
+            disabled={voteChecking || voteBusy}
             style={{
               padding: '5px 0', borderRadius: 4,
               border: `1px solid ${voted ? 'var(--tt-accent, #38bdf8)' : 'rgba(255,255,255,0.12)'}`,
               background: voted ? 'rgba(56,189,248,0.12)' : 'transparent',
               color: voted ? 'var(--tt-accent, #38bdf8)' : 'rgba(255,255,255,0.5)',
               fontFamily: 'monospace', fontSize: 11,
-              cursor: 'pointer', outline: 'none',
+              cursor: voteChecking || voteBusy ? 'default' : 'pointer', outline: 'none',
+              opacity: voteChecking ? 0.5 : 1,
             }}
             title={voted ? 'Remove vote' : 'Upvote'}
           >

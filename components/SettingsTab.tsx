@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './useAuth';
 import { PROFILE_CARD_STYLE } from './ProfileLayout';
@@ -13,12 +13,32 @@ const LABEL_STYLE: React.CSSProperties = {
 
 export default function SettingsTab() {
   const router = useRouter();
-  const { updatePassword, signOut, deleteAccount } = useAuth();
+  const { user, displayName, updateUsername, updatePassword, signOut, deleteAccount } = useAuth();
+  const [username, setUsername] = useState('');
+  const [usernameBusy, setUsernameBusy] = useState(false);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [usernameSaved, setUsernameSaved] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (displayName) setUsername(displayName);
+  }, [displayName]);
+
+  const handleUsernameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUsernameError(null); setUsernameSaved(false);
+    const trimmed = username.trim();
+    if (!trimmed) { setUsernameError("Username can't be empty."); return; }
+    setUsernameBusy(true);
+    const result = await updateUsername(trimmed);
+    setUsernameBusy(false);
+    if (result.error) setUsernameError(result.error);
+    else setUsernameSaved(true);
+  };
   const [deletePhase, setDeletePhase] = useState<'idle' | 'confirm'>('idle');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -53,6 +73,20 @@ export default function SettingsTab() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       <ControlsSettings />
+      <div style={PROFILE_CARD_STYLE}>
+        <span style={LABEL_STYLE}>Account</span>
+        <div style={{ marginBottom: '1rem' }}>
+          <span style={{ ...LABEL_STYLE, marginBottom: '0.25rem' }}>Email</span>
+          <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>{user?.email}</span>
+        </div>
+        <span style={{ ...LABEL_STYLE, marginBottom: '0.35rem' }}>Username</span>
+        <form onSubmit={handleUsernameSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxWidth: '320px' }}>
+          <input value={username} onChange={(e) => { setUsername(e.target.value.slice(0, 20)); setUsernameSaved(false); }} maxLength={20} required style={FIELD_STYLE} />
+          <button type="submit" disabled={usernameBusy} style={{ ...PRIMARY_BUTTON_STYLE, opacity: usernameBusy ? 0.6 : 1, alignSelf: 'flex-start' }}>{usernameBusy ? 'Saving…' : 'Save Username'}</button>
+        </form>
+        {usernameError && <p style={{ ...ERROR_TEXT_STYLE, marginTop: '0.5rem' }}>{usernameError}</p>}
+        {usernameSaved && <p style={{ ...SUCCESS_TEXT_STYLE, marginTop: '0.5rem' }}>Username updated.</p>}
+      </div>
       <div style={PROFILE_CARD_STYLE}>
         <span style={LABEL_STYLE}>Change Password</span>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '320px' }}>

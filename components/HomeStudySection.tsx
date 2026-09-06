@@ -95,7 +95,7 @@ function HomeFeaturedStudy({ post }: { post: StudyPost }) {
             {topicLabel(post.topic)}
           </span>
           <span style={{ color: 'var(--tt-text-faint)' }}>
-            {post.author_username ?? 'Anon'} · {timeAgo(post.created_at)}
+            {post.author_username ?? 'Anon'} · {post.updated_at && post.updated_at !== post.created_at ? `updated ${timeAgo(post.updated_at)}` : timeAgo(post.created_at)}
           </span>
         </div>
       </div>
@@ -158,7 +158,7 @@ function RecentCard({ post }: { post: StudyPost }) {
         </div>
       )}
       <div style={{ fontSize: '0.68rem', fontFamily: 'monospace', color: 'var(--tt-text-faint)' }}>
-        {post.author_username ?? 'Anon'} · {timeAgo(post.created_at)}
+        {post.author_username ?? 'Anon'} · {post.updated_at && post.updated_at !== post.created_at ? `updated ${timeAgo(post.updated_at)}` : timeAgo(post.created_at)}
       </div>
     </Link>
   );
