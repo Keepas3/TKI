@@ -10,7 +10,7 @@ const comfortaa = Comfortaa({
 });
 
 export const metadata: Metadata = {
-  title: "TKI — Tetris Knowledge Index",
+  title: "Tetris Knowledge Index",
   description: "Share Tetris openings and strategies, solve Perfect Clear puzzles, and discuss the game with the community.",
 };
 
