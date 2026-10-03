@@ -10,8 +10,8 @@ const comfortaa = Comfortaa({
 });
 
 export const metadata: Metadata = {
-  title: "TKI",
-  description: "Study, puzzles, and accounts for block-stacking games.",
+  title: "TKI — Tetris Knowledge Index",
+  description: "Share Tetris openings and strategies, solve Perfect Clear puzzles, and discuss the game with the community.",
 };
 
 export default async function RootLayout({

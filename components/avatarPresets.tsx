@@ -73,7 +73,7 @@ export function AvatarDisplay({ avatarId, size }: { avatarId: string | undefined
   if (!avatarId || avatarId === DEFAULT_AVATAR_ID) {
     return (
       <img
-        src="/default.png"
+        src="/default.webp"
         alt="avatar"
         style={{ width: size, height: size, borderRadius: 4, objectFit: 'cover', display: 'block' }}
       />
