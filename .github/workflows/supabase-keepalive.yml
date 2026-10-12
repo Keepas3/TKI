@@ -2,17 +2,30 @@ name: Supabase keep-alive
 
 on:
   schedule:
-    - cron: '0 9 */3 * *'  # every 3 days at 09:00 UTC
-  workflow_dispatch:         # allow manual trigger from GitHub Actions tab
+    - cron: '0 9 * * *'   # daily at 09:00 UTC
+  workflow_dispatch:        # allow manual trigger from GitHub Actions tab
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          curl -sf \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/study_posts?limit=1&select=id" \
-            && echo "Supabase is awake" || echo "Ping failed"
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "ERROR: SUPABASE_URL or SUPABASE_ANON_KEY secret is not set"
+            exit 1
+          fi
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/study_posts?limit=1&select=id")
+          echo "HTTP status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "Supabase is awake"
+          else
+            echo "Ping failed with status $HTTP_STATUS"
+            exit 1
+          fi
